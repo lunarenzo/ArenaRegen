@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.zitemaker'
-version = '1.6-MODERN'
+version = '1.6.2-MODERN'
 description = 'ArenaRegen'
 
 java {
@@ -30,6 +30,7 @@ dependencies {
     compileOnly 'io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT'
     compileOnly 'me.clip:placeholderapi:2.11.6'
     implementation 'net.kyori:adventure-api:4.25.0'
+    implementation 'net.kyori:adventure-text-serializer-ansi:4.17.0'
     implementation 'net.kyori:adventure-platform-bukkit:4.3.4'
     implementation 'org.jetbrains:annotations:26.0.1'
 
