@@ -64,6 +64,7 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
                 "Arena Creation & Management:",
                 "/arenaregen create <arena> - Create a new arena",
                 "/arenaregen delete <arena> - Delete an arena",
+                "/arenaregen rename <oldArena> <newArena> - Rename an arena",
                 "/arenaregen resize <arena> - Resize an arena",
                 "/arenaregen list - List all arenas",
                 "/arenaregen wand - Get the selection tool"
@@ -76,7 +77,7 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
                 "/arenaregen schedule - Schedule a regeneration timer",
                 "/arenaregen setspawn <arena> - Set spawn for an arena",
                 "/arenaregen delspawn <arena> - Remove spawn from an arena",
-                "/arenaregen teleport <arena> - Teleport to an arena"
+                "/arenaregen teleport <player> <arena> - Teleport a player to an arena"
         });
 
         helpPages.put(3, new String[] {
@@ -117,6 +118,21 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
                 msg.getString("messages.region-created", "&aRegion '{arena_name}' has been successfully registered!"));
         String regionDeleted = ChatColor.translateAlternateColorCodes('&',
                 msg.getString("messages.region-deleted", "&aRegion '{arena_name}' has been successfully deleted!"));
+        String regionRenamed = ChatColor.translateAlternateColorCodes('&',
+                msg.getString("messages.region-renamed",
+                        "&aArena '{old_arena_name}' has been renamed to '{new_arena_name}'."));
+        String invalidArenaName = ChatColor.translateAlternateColorCodes('&',
+                msg.getString("messages.invalid-arena-name",
+                        "&cArena names may only contain letters, numbers, underscores, and hyphens."));
+        String arenaRenameBusy = ChatColor.translateAlternateColorCodes('&',
+                msg.getString("messages.arena-rename-busy",
+                        "&cArena '{arena_name}' cannot be renamed while it is regenerating."));
+        String arenaRenamePending = ChatColor.translateAlternateColorCodes('&',
+                msg.getString("messages.arena-rename-pending",
+                        "&cArena '{arena_name}' has a pending confirmation and cannot be renamed yet."));
+        String arenaRenameStorageFailed = ChatColor.translateAlternateColorCodes('&',
+                msg.getString("messages.arena-rename-storage-failed",
+                        "&cCould not rename arena files: {reason}"));
         String regionResized = ChatColor.translateAlternateColorCodes('&',
                 msg.getString("messages.region-resized", "&aRegion '{arena_name}' has been successfully resized!"));
         String arenaNotFound = ChatColor.translateAlternateColorCodes('&',
@@ -374,6 +390,43 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
                     commandSender.sendMessage(pluginPrefix + " " + regionDeletedMsg);
                 });
 
+                return true;
+            }
+
+            case "rename" -> {
+                String showUsage = ChatColor.translateAlternateColorCodes('&',
+                        "&cUsage: /arenaregen rename <oldArena> <newArena>");
+
+                if (!commandSender.hasPermission("arenaregen.rename")) {
+                    commandSender.sendMessage(pluginPrefix + " " + noPermission);
+                    return true;
+                }
+
+                if (strings.length != 3) {
+                    commandSender.sendMessage(pluginPrefix + " " + showUsage);
+                    return true;
+                }
+
+                String oldArenaName = strings[1];
+                String newArenaName = strings[2];
+                ArenaRegen.RenameArenaResult renameResult = plugin.renameArena(oldArenaName, newArenaName);
+
+                switch (renameResult.status()) {
+                    case SUCCESS -> commandSender.sendMessage(pluginPrefix + " " + regionRenamed
+                            .replace("{old_arena_name}", oldArenaName)
+                            .replace("{new_arena_name}", newArenaName));
+                    case NOT_FOUND -> commandSender.sendMessage(pluginPrefix + " "
+                            + arenaNotFound.replace("{arena_name}", oldArenaName));
+                    case ALREADY_EXISTS -> commandSender.sendMessage(pluginPrefix + " "
+                            + regionExists.replace("{arena_name}", newArenaName));
+                    case INVALID_NAME -> commandSender.sendMessage(pluginPrefix + " " + invalidArenaName);
+                    case BUSY -> commandSender.sendMessage(pluginPrefix + " "
+                            + arenaRenameBusy.replace("{arena_name}", oldArenaName));
+                    case PENDING_CONFIRMATION -> commandSender.sendMessage(pluginPrefix + " "
+                            + arenaRenamePending.replace("{arena_name}", oldArenaName));
+                    case STORAGE_FAILURE -> commandSender.sendMessage(pluginPrefix + " "
+                            + arenaRenameStorageFailed.replace("{reason}", String.valueOf(renameResult.detail())));
+                }
                 return true;
             }
 
@@ -1158,12 +1211,13 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
         return switch (args.length) {
             case 1 ->
                 filterSuggestions(List.of("create", "regenerate", "regen", "setspawn", "delspawn", "teleport", "tp",
-                        "list", "delete", "resize", "reload", "help", "wand", "selection", "schedule", "preview",
+                        "list", "delete", "rename", "resize", "reload", "help", "wand", "selection", "schedule", "preview",
                         "info", "unlock", "here"), args[0]);
 
             case 2 -> {
                 if (args[0].equalsIgnoreCase("regenerate") || args[0].equalsIgnoreCase("regen")
                         || args[0].equalsIgnoreCase("delete") || args[0].equalsIgnoreCase("resize")
+                        || args[0].equalsIgnoreCase("rename")
                         || args[0].equalsIgnoreCase("setspawn") || args[0].equalsIgnoreCase("delspawn")
                         || args[0].equalsIgnoreCase("preview")
                         || args[0].equalsIgnoreCase("schedule")
@@ -1183,6 +1237,8 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
             case 3 -> {
                 if (args[0].equalsIgnoreCase("schedule")) {
                     yield filterSuggestions(List.of("10s", "1m", "1d", "1w"), args[2]);
+                } else if (args[0].equalsIgnoreCase("rename")) {
+                    yield filterSuggestions(List.of("NewArenaName"), args[2]);
                 } else if (args[0].equalsIgnoreCase("tp") || args[0].equalsIgnoreCase("teleport")) {
                     yield listRegionsForTabComplete(args[2]);
                 }

@@ -1,5 +1,5 @@
 name: ArenaRegen
-version: 1.5.2
+version: 1.6-MODERN
 main: com.zitemaker.ArenaRegen
 api-version: 1.18
 description: A plugin that registers and regenerates regions using coordinates.
@@ -16,15 +16,20 @@ permissions:
     description: Allows the player to register regions.
     default: op
   arenaregen.delete:
-    description: Allows the player to regenerate regions.
+    description: Allows the player to delete regions.
+    default: op
+  arenaregen.rename:
+    description: Allows the player to rename regions.
     default: op
   arenaregen.resize:
     description: Allows the player to resize regions.
     default: op
   arenaregen.regenerate:
-    description: Allows the player to use the selection tool. Receives access to /arenaregen wand & /arenaregen selection
+    description: Allows the player to regenerate regions.
+    default: op
   arenaregen.select:
     description: Allows the player to use the selection tool. Receives access to /arenaregen wand & /arenaregen selection
+    default: op
   arenaregen.list:
     description: Allows the player to list all regions.
     default: op

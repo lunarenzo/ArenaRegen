@@ -30,6 +30,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -448,6 +449,7 @@ public class ArenaRegen extends JavaPlugin {
             "arenaregen.delete",
             "arenaregen.resize",
             "arenaregen.list",
+            "arenaregen.rename",
             "arenaregen.setspawn",
             "arenaregen.delspawn",
             "arenaregen.teleport",
@@ -493,6 +495,133 @@ public class ArenaRegen extends JavaPlugin {
         synchronized (dirtyRegions) {
             dirtyRegions.add(regionName);
         }
+    }
+
+    public RenameArenaResult renameArena(String oldName, String newName) {
+        try {
+            ArenaRenameService.validateArenaName(oldName);
+            ArenaRenameService.validateArenaName(newName);
+        } catch (IllegalArgumentException e) {
+            return RenameArenaResult.invalidName(e.getMessage());
+        }
+
+        synchronized (regeneratingArenas) {
+            if (regeneratingArenas.contains(oldName)) {
+                return RenameArenaResult.busy(oldName);
+            }
+        }
+        if (pendingDeletions.containsValue(oldName) || pendingRegenerations.containsValue(oldName)) {
+            return RenameArenaResult.pending(oldName);
+        }
+
+        File arenasDir = new File(getDataFolder(), "arenas");
+        Path oldFile = new File(arenasDir, oldName + ".datc").toPath();
+        Path newFile = new File(arenasDir, newName + ".datc").toPath();
+
+        try {
+            synchronized (registeredRegions) {
+                RegionData regionData = registeredRegions.get(oldName);
+                if (regionData == null) {
+                    return RenameArenaResult.notFound(oldName);
+                }
+                if (registeredRegions.containsKey(newName)) {
+                    return RenameArenaResult.alreadyExists(newName);
+                }
+
+                synchronized (dirtyRegions) {
+                    ArenaRenameService.rename(new ArenaRenameService.Request<>(
+                            oldName,
+                            newName,
+                            registeredRegions,
+                            dirtyRegions,
+                            oldFile,
+                            newFile,
+                            path -> regionData.setDatcFile(path.toFile())
+                    ));
+                }
+            }
+        } catch (IOException e) {
+            return RenameArenaResult.storageFailure(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return RenameArenaResult.invalidName(e.getMessage());
+        }
+
+        renameSchedule(oldName, newName);
+        if (playerMoveListener != null) {
+            playerMoveListener.updateRegionBounds();
+        }
+        return RenameArenaResult.success(oldName, newName);
+    }
+
+    private void renameSchedule(String oldName, String newName) {
+        Long interval = scheduledIntervals.remove(oldName);
+        Long startTime = taskStartTimes.remove(oldName);
+        Integer taskId = scheduledTasks.remove(oldName);
+
+        if (taskId != null) {
+            Bukkit.getScheduler().cancelTask(taskId);
+        }
+        if (interval == null) {
+            saveSchedules();
+            return;
+        }
+
+        scheduledIntervals.put(newName, interval);
+        taskStartTimes.put(newName, startTime != null ? startTime : System.currentTimeMillis());
+
+        Runnable regenerateTask = createRegenerateTask(newName);
+        int newTaskId = Bukkit.getScheduler().runTaskTimer(this, regenerateTask, interval, interval).getTaskId();
+        scheduledTasks.put(newName, newTaskId);
+        saveSchedules();
+
+        if (placeholderExpansion != null) {
+            placeholderExpansion.onScheduleUpdate();
+        }
+    }
+
+    public record RenameArenaResult(
+            RenameArenaStatus status,
+            String oldName,
+            String newName,
+            String detail
+    ) {
+        public static RenameArenaResult success(String oldName, String newName) {
+            return new RenameArenaResult(RenameArenaStatus.SUCCESS, oldName, newName, null);
+        }
+
+        public static RenameArenaResult invalidName(String detail) {
+            return new RenameArenaResult(RenameArenaStatus.INVALID_NAME, null, null, detail);
+        }
+
+        public static RenameArenaResult notFound(String oldName) {
+            return new RenameArenaResult(RenameArenaStatus.NOT_FOUND, oldName, null, null);
+        }
+
+        public static RenameArenaResult alreadyExists(String newName) {
+            return new RenameArenaResult(RenameArenaStatus.ALREADY_EXISTS, null, newName, null);
+        }
+
+        public static RenameArenaResult busy(String oldName) {
+            return new RenameArenaResult(RenameArenaStatus.BUSY, oldName, null, null);
+        }
+
+        public static RenameArenaResult pending(String oldName) {
+            return new RenameArenaResult(RenameArenaStatus.PENDING_CONFIRMATION, oldName, null, null);
+        }
+
+        public static RenameArenaResult storageFailure(String detail) {
+            return new RenameArenaResult(RenameArenaStatus.STORAGE_FAILURE, null, null, detail);
+        }
+    }
+
+    public enum RenameArenaStatus {
+        SUCCESS,
+        INVALID_NAME,
+        NOT_FOUND,
+        ALREADY_EXISTS,
+        BUSY,
+        PENDING_CONFIRMATION,
+        STORAGE_FAILURE
     }
 
     public void scheduleRegeneration(String arenaName, long intervalTicks, CommandSender sender) {
