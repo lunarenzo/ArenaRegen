@@ -23,33 +23,7 @@ Fight. Destroy. Regenerate. Repeat!
 **WE DO NOT SUPPORT FORGE / FABRIC**
 
 - Java 17+ ([Get Adoptium](https://adoptium.net/))
-- Minecraft 1.18.0 - 1.21.4
 
 ## :link: Links
 
-- [BuiltByBit](https://builtbybit.com/resources/arenaregen.63058/)
-- [ArenaRegen+](https://www.spigotmc.org/resources/arenaregen-instantly-reset-pvp-arenas-with-1-command.124624/)
 - [SpigotMC](https://www.spigotmc.org/resources/123731)
-- [Discord](https://discord.gg/HkTQz3xWJc)
-- [Website](https://zitemaker.tebex.io)
-
-## 📥 How to install? / Installation / Setup
-
-You can [read on our official documentation](https://zitemakers-organization.gitbook.io/arenaregen) how to
-install ArenaRegen. Make sure to follow all steps before reporting issues!
-
-## 🌈 Community
-
-Feel free to join our Discord community server:
-
-[![Discord Banner](https://discord.com/api/guilds/1341770518684241991/widget.png?style=banner2)](https://discord.gg/HkTQz3xWJc)
-
-## :family: Authors
-
-See [Contributors](https://github.com/zitemaker/ArenaRegen/graphs/contributors) for a list of people that have
-supported this project by contributing.
-
-## :scroll: License
-
-ArenaRegen is licensed under GNU General Public License v3.0. Please
-see [`LICENSE`](https://github.com/zitemaker/ArenaRegen/blob/master/LICENSE) for more info.
