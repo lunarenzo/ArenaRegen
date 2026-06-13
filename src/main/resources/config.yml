@@ -28,7 +28,7 @@ regen:
   regen-speed: FAST # SLOW, NORMAL, FAST, VERYFAST, EXTREME (used if regen-speed-type is PRESET)
   custom-regen-speed: 10000 # Integer value used if regen-speed-type is CUSTOM
   track-entities: true # Whether entities should be tracked after creating an arena and removed when regenerating the arena
-  regen-only-modified: false # Whether it should only regenerate modified blocks or not
+  regen-only-modified: true # Whether it should only regenerate modified blocks or not
   confirmation-prompt: false # Whether it should show a confirmation prompt when using the regenerate command
   # Automatically regenerate the arena when it becomes empty
   regenerate-on-empty: true
