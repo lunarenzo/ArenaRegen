@@ -70,6 +70,8 @@ public class ArenaRegen extends JavaPlugin {
     public String previewParticleString;
     public Particle previewParticle;
     private boolean lockDuringRegeneration;
+    public boolean regenerateOnEmpty;
+    public int regenerateOnEmptyDelay;
 
     private int saveTaskId = -1;
     private final Map<String, Integer> scheduledTasks = new ConcurrentHashMap<>();
@@ -405,6 +407,8 @@ public class ArenaRegen extends JavaPlugin {
         this.selectionTool = getConfig().getString("general.selection-tool", "GOLDEN_HOE").toUpperCase();
         this.previewParticleString = getConfig().getString("general.preview-particle", "FLAME").toUpperCase();
         this.lockDuringRegeneration = getConfig().getBoolean("regen.lock-arenas", true);
+        this.regenerateOnEmpty = getConfig().getBoolean("regen.regenerate-on-empty", false);
+        this.regenerateOnEmptyDelay = getConfig().getInt("regen.regenerate-on-empty-delay", 5);
     }
 
     public void reloadPluginConfig() {

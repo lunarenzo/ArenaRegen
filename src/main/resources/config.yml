@@ -30,6 +30,10 @@ regen:
   track-entities: true # Whether entities should be tracked after creating an arena and removed when regenerating the arena
   regen-only-modified: false # Whether it should only regenerate modified blocks or not
   confirmation-prompt: false # Whether it should show a confirmation prompt when using the regenerate command
+  # Automatically regenerate the arena when it becomes empty
+  regenerate-on-empty: true
+  # Delay in seconds to wait after the last player leaves before starting regeneration
+  regenerate-on-empty-delay: 5
   players-inside-arena: # Actions to be taken on players who are inside the arena while it is regenerating
     cancel-regen: false # Cancel the regeneration
     kill: false # Kill the player

@@ -46,7 +46,7 @@ tasks {
 
     shadowJar {
         archiveFileName = "ArenaRegen-${version}.jar"
-        destinationDirectory = file('E:/Server/plugins')
+        destinationDirectory = file("${layout.buildDirectory.get().asFile}/libs")
 
         relocate 'net.kyori.adventure.platform', 'com.zitemaker.libs.adventure.platform'
 
