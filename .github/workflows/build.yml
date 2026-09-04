@@ -27,11 +27,18 @@ jobs:
     - name: Make Gradle Wrapper executable
       run: chmod +x gradlew
 
+    - name: Compute Build Version
+      id: versioning
+      run: |
+        SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+        BUILD_VER="1.6.2-MODERN-b${{ github.run_number }}-${SHORT_SHA}"
+        echo "build_version=${BUILD_VER}" >> $GITHUB_OUTPUT
+
     - name: Build with Gradle
-      run: ./gradlew shadowJar --no-daemon
+      run: ./gradlew shadowJar -PcustomVersion=${{ steps.versioning.outputs.build_version }} --no-daemon
 
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ArenaRegen-Jar
+        name: ArenaRegen-${{ steps.versioning.outputs.build_version }}
         path: build/libs/ArenaRegen-*.jar

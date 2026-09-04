@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.zitemaker'
-version = '1.6.2-MODERN'
+version = project.hasProperty('customVersion') ? project.property('customVersion') : '1.6.2-MODERN-dev'
 description = 'ArenaRegen'
 
 java {
@@ -20,8 +20,7 @@ repositories {
     maven { url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
     maven { url = 'https://oss.sonatype.org/content/groups/public/' }
     maven { url = 'https://repo.maven.apache.org/maven2/' }
-    maven { url = 'https://repo.extendedclip.com/releases/'
-    }
+    maven { url = 'https://repo.extendedclip.com/releases/' }
 }
 
 dependencies {
@@ -42,6 +41,15 @@ tasks {
         options.encoding = 'UTF-8'
         options.release = 21
         options.compilerArgs << '-parameters'
+    }
+
+    processResources {
+        def props = [version: project.version]
+        inputs.properties(props)
+        filteringCharset 'UTF-8'
+        filesMatching('plugin.yml') {
+            expand props
+        }
     }
 
     shadowJar {
