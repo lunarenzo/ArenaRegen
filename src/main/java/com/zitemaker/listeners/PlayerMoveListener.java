@@ -16,6 +16,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -141,30 +142,45 @@ public class PlayerMoveListener implements Listener {
         if (!plugin.regenerateOnEmpty) return;
 
         World world = player.getWorld();
-        Set<RegionData> candidateRegions = new HashSet<>();
-        if (locFrom != null) {
-            candidateRegions.addAll(plugin.getSpatialRegionIndex().getRegionsInChunk(locFrom.getBlockX() >> 4, locFrom.getBlockZ() >> 4));
-        }
-        if (locTo != null) {
-            candidateRegions.addAll(plugin.getSpatialRegionIndex().getRegionsInChunk(locTo.getBlockX() >> 4, locTo.getBlockZ() >> 4));
-        }
+        int fromChunkX = locFrom != null ? locFrom.getBlockX() >> 4 : Integer.MIN_VALUE;
+        int fromChunkZ = locFrom != null ? locFrom.getBlockZ() >> 4 : Integer.MIN_VALUE;
+        int toChunkX = locTo != null ? locTo.getBlockX() >> 4 : Integer.MIN_VALUE;
+        int toChunkZ = locTo != null ? locTo.getBlockZ() >> 4 : Integer.MIN_VALUE;
 
-        if (candidateRegions.isEmpty()) return;
+        Set<RegionData> fromRegions = (locFrom != null) ? plugin.getSpatialRegionIndex().getRegionsInChunk(fromChunkX, fromChunkZ) : Collections.emptySet();
+        Set<RegionData> toRegions = (locTo != null && (fromChunkX != toChunkX || fromChunkZ != toChunkZ)) ? plugin.getSpatialRegionIndex().getRegionsInChunk(toChunkX, toChunkZ) : Collections.emptySet();
 
-        for (RegionData region : candidateRegions) {
-            if (!region.getWorldName().equals(world.getName())) continue;
+        if (fromRegions.isEmpty() && toRegions.isEmpty()) return;
 
-            boolean wasInside = locFrom != null && region.containsLocation(world, locFrom.getBlockX(), locFrom.getBlockY(), locFrom.getBlockZ());
-            boolean isInside = locTo != null && region.containsLocation(world, locTo.getBlockX(), locTo.getBlockY(), locTo.getBlockZ());
-
-            String regionName = getRegionName(region);
-            if (regionName == null) continue;
-
-            if (wasInside && !isInside) {
-                handlePlayerLeft(regionName);
-            } else if (!wasInside && isInside) {
-                handlePlayerEntered(regionName);
+        evaluateRegionSet(player, world, locFrom, locTo, fromRegions);
+        if (!toRegions.isEmpty()) {
+            for (RegionData region : toRegions) {
+                if (!fromRegions.contains(region)) {
+                    evaluateSingleRegion(player, world, locFrom, locTo, region);
+                }
             }
+        }
+    }
+
+    private void evaluateRegionSet(Player player, World world, Location locFrom, Location locTo, Set<RegionData> regions) {
+        for (RegionData region : regions) {
+            evaluateSingleRegion(player, world, locFrom, locTo, region);
+        }
+    }
+
+    private void evaluateSingleRegion(Player player, World world, Location locFrom, Location locTo, RegionData region) {
+        if (!region.getWorldName().equals(world.getName())) return;
+
+        boolean wasInside = locFrom != null && region.containsLocation(world, locFrom.getBlockX(), locFrom.getBlockY(), locFrom.getBlockZ());
+        boolean isInside = locTo != null && region.containsLocation(world, locTo.getBlockX(), locTo.getBlockY(), locTo.getBlockZ());
+
+        String regionName = getRegionName(region);
+        if (regionName == null) return;
+
+        if (wasInside && !isInside) {
+            handlePlayerLeft(regionName);
+        } else if (!wasInside && isInside) {
+            handlePlayerEntered(regionName);
         }
     }
 
