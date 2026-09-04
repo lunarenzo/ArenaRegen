@@ -1,27 +1,28 @@
 package com.zitemaker.helpers;
 
-import org.bukkit.World;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
+import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Thread-safe spatial index mapping packed chunk coordinates to RegionData instances.
  * Reduces spatial boundary queries from O(N) linear region iteration to O(1) instant hash lookups.
+ * Employs unboxed primitive FastUtil Long2ObjectOpenHashMap to eliminate Long key heap allocations.
  */
 public final class SpatialRegionIndex {
 
-    private final Map<Long, Set<RegionData>> chunkMap = new ConcurrentHashMap<>();
+    private final Long2ObjectMap<Set<RegionData>> chunkMap = new Long2ObjectOpenHashMap<>();
 
     /**
      * Indexes all chunks covered by the region bounding box.
      *
      * @param region region to index
      */
-    public void registerRegion(RegionData region) {
+    public synchronized void registerRegion(RegionData region) {
         if (region == null || region.getWorldName() == null) {
             return;
         }
@@ -34,7 +35,7 @@ public final class SpatialRegionIndex {
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
                 long packedChunk = BlockPos.packChunk(cx, cz);
-                chunkMap.computeIfAbsent(packedChunk, k -> ConcurrentHashMap.newKeySet()).add(region);
+                chunkMap.computeIfAbsent(packedChunk, k -> new HashSet<>()).add(region);
             }
         }
     }
@@ -44,7 +45,7 @@ public final class SpatialRegionIndex {
      *
      * @param region region to remove
      */
-    public void unregisterRegion(RegionData region) {
+    public synchronized void unregisterRegion(RegionData region) {
         if (region == null) {
             return;
         }
@@ -73,7 +74,7 @@ public final class SpatialRegionIndex {
      *
      * @param regions active region collection
      */
-    public void reindexAll(Collection<RegionData> regions) {
+    public synchronized void reindexAll(Collection<RegionData> regions) {
         chunkMap.clear();
         if (regions == null || regions.isEmpty()) {
             return;
@@ -85,12 +86,13 @@ public final class SpatialRegionIndex {
 
     /**
      * Fast O(1) lookup of regions occupying a specific chunk.
+     * Unboxed long key prevents java.lang.Long heap allocation.
      *
      * @param chunkX chunk X coordinate
      * @param chunkZ chunk Z coordinate
      * @return set of regions in the specified chunk, or empty set
      */
-    public Set<RegionData> getRegionsInChunk(int chunkX, int chunkZ) {
+    public synchronized Set<RegionData> getRegionsInChunk(int chunkX, int chunkZ) {
         Set<RegionData> regions = chunkMap.get(BlockPos.packChunk(chunkX, chunkZ));
         return regions != null ? regions : Collections.emptySet();
     }
@@ -98,7 +100,7 @@ public final class SpatialRegionIndex {
     /**
      * Clears all spatial index mappings.
      */
-    public void clear() {
+    public synchronized void clear() {
         chunkMap.clear();
     }
 }
