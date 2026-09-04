@@ -356,16 +356,25 @@ public class ArenaRegen extends JavaPlugin {
             return;
         }
 
-        console.sendMessage("Saving " + regionsToProcess.size() + " dirty regions asynchronously...");
+        Set<String> validRegionsToProcess = new HashSet<>();
+        for (String regionName : regionsToProcess) {
+            RegionData region = regionsToSave.get(regionName);
+            if (region != null && !isRegionEmpty(region)) {
+                validRegionsToProcess.add(regionName);
+            }
+        }
+
+        if (validRegionsToProcess.isEmpty()) {
+            return;
+        }
+
+        console.sendMessage("Saving " + validRegionsToProcess.size() + " dirty regions asynchronously...");
         AtomicInteger savedRegions = new AtomicInteger(0);
         StringBuilder errorSummary = new StringBuilder();
 
         List<CompletableFuture<Void>> saveFutures = new ArrayList<>();
-        for (String regionName : regionsToProcess) {
+        for (String regionName : validRegionsToProcess) {
             RegionData region = regionsToSave.get(regionName);
-            if (region == null || isRegionEmpty(region)) {
-                continue;
-            }
             File datcFile = new File(arenasDir, regionName + ".datc");
             CompletableFuture<Void> saveFuture = region.saveToDatc(datcFile)
                     .thenRun(() -> {
@@ -378,9 +387,11 @@ public class ArenaRegen extends JavaPlugin {
                         }
                         logger.info("Failed to save region '" + regionName + "' to " + datcFile.getPath() + ": "
                                 + e.getMessage());
-                        errorSummary.append(ARChatColor.RED)
-                                .append(" - Region '").append(regionName).append("': ").append(e.getMessage())
-                                .append("\n");
+                        synchronized (errorSummary) {
+                            errorSummary.append(ARChatColor.RED)
+                                    .append(" - Region '").append(regionName).append("': ").append(e.getMessage())
+                                    .append("\n");
+                        }
                         return null;
                     });
             saveFutures.add(saveFuture);
@@ -389,10 +400,10 @@ public class ArenaRegen extends JavaPlugin {
         CompletableFuture.allOf(saveFutures.toArray(new CompletableFuture[0]))
                 .thenRun(() -> {
                     int totalSaved = savedRegions.get();
-                    console.sendMessage("Successfully saved " + totalSaved + " out of " + regionsToProcess.size()
+                    console.sendMessage("Successfully saved " + totalSaved + " out of " + validRegionsToProcess.size()
                             + " dirty regions.");
 
-                    if (totalSaved < regionsToProcess.size()) {
+                    if (totalSaved < validRegionsToProcess.size() && errorSummary.length() > 0) {
                         console.sendMessage(ARChatColor.RED + "Errors occurred while saving the following regions:");
                         console.sendMessage(errorSummary.toString());
                         Bukkit.getScheduler().runTask(this, () -> {
@@ -993,6 +1004,9 @@ public class ArenaRegen extends JavaPlugin {
                 synchronized (regeneratingArenas) {
                     regeneratingArenas.remove(arenaName);
                 }
+                synchronized (dirtyRegions) {
+                    dirtyRegions.remove(arenaName);
+                }
                 if (regionData.isLocked()) {
                     regionData.setLocked(false);
                 }
@@ -1349,6 +1363,9 @@ public class ArenaRegen extends JavaPlugin {
                             synchronized (regeneratingArenas) {
                                 regeneratingArenas.remove(arenaName);
                                 logger.info("[ArenaRegen] Removed from regeneratingArenas (completed): " + arenaName);
+                            }
+                            synchronized (dirtyRegions) {
+                                dirtyRegions.remove(arenaName);
                             }
                             task.cancel();
                             regionData.clearBlockData();
