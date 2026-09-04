@@ -343,7 +343,11 @@ public class ArenaRegen extends JavaPlugin {
                 return;
             }
             synchronized (dirtyRegions) {
+                if (dirtyRegions.isEmpty()) {
+                    return;
+                }
                 regionsToProcess = new HashSet<>(dirtyRegions);
+                dirtyRegions.removeAll(regionsToProcess);
             }
         }
 
@@ -368,6 +372,9 @@ public class ArenaRegen extends JavaPlugin {
                         logger.info("Saved region '" + regionName + "' to " + datcFile.getPath());
                     })
                     .exceptionally(e -> {
+                        synchronized (dirtyRegions) {
+                            dirtyRegions.add(regionName);
+                        }
                         logger.info("Failed to save region '" + regionName + "' to " + datcFile.getPath() + ": "
                                 + e.getMessage());
                         errorSummary.append(ARChatColor.RED)
@@ -396,9 +403,6 @@ public class ArenaRegen extends JavaPlugin {
                             }
                         });
                     } else {
-                        synchronized (dirtyRegions) {
-                            dirtyRegions.removeAll(regionsToProcess);
-                        }
                         console.sendMessage("Cleared saved regions from dirty regions list.");
                     }
                 });
@@ -807,56 +811,47 @@ public class ArenaRegen extends JavaPlugin {
 
             CompletableFuture<Void> loadFuture = regionData.ensureBlockDataLoaded();
 
-            CompletableFuture<Void> timeoutFuture = CompletableFuture.runAsync(() -> {
-                try {
-                    Thread.sleep(15000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+            BukkitTask timeoutTask = Bukkit.getScheduler().runTaskLater(this, () -> {
+                synchronized (regeneratingArenas) {
+                    if (regeneratingArenas.remove(arenaName)) {
+                        logger.info("[ArenaRegen] Removed from regeneratingArenas (timeout): " + arenaName);
+                        if (sender != null) {
+                            sender.sendMessage(prefix + ChatColor.RED
+                                    + " Failed to load arena data: timeout after 15 seconds. Please try again.");
+                        }
+                    }
                 }
-            });
+            }, 300L);
 
-            CompletableFuture.anyOf(loadFuture, timeoutFuture)
-                    .thenAccept(result -> Bukkit.getScheduler().runTask(this, () -> {
-                        synchronized (regeneratingArenas) {
-                            if (!regeneratingArenas.contains(arenaName)) {
-                                logger.info("[ArenaRegen] Arena '" + arenaName
-                                        + "' no longer in regenerating state, aborting");
-                                return;
-                            }
-                        }
+            loadFuture.thenAccept(v -> Bukkit.getScheduler().runTask(this, () -> {
+                timeoutTask.cancel();
+                synchronized (regeneratingArenas) {
+                    if (!regeneratingArenas.contains(arenaName)) {
+                        logger.info("[ArenaRegen] Arena '" + arenaName
+                                + "' no longer in regenerating state, aborting");
+                        return;
+                    }
+                }
 
-                        if (result == timeoutFuture) {
-                            synchronized (regeneratingArenas) {
-                                regeneratingArenas.remove(arenaName);
-                                logger.info("[ArenaRegen] Removed from regeneratingArenas (timeout): " + arenaName);
-                            }
-                            if (sender != null) {
-                                sender.sendMessage(prefix + ChatColor.RED
-                                        + " Failed to load arena data: timeout after 15 seconds. Please try again.");
-                            }
-                            return;
-                        }
+                if (!regionData.isBlockDataLoaded()) {
+                    synchronized (regeneratingArenas) {
+                        regeneratingArenas.remove(arenaName);
+                        logger.info("[ArenaRegen] Removed from regeneratingArenas (data still not loaded): "
+                                + arenaName);
+                    }
+                    if (sender != null) {
+                        sender.sendMessage(prefix + ChatColor.RED
+                                + " Failed to load arena data. The arena file may be corrupted.");
+                    }
+                    return;
+                }
 
-                        logger.info("[ArenaRegen] Load future completed for arena '" + arenaName
-                                + "', checking if data is loaded...");
-                        if (!regionData.isBlockDataLoaded()) {
-                            synchronized (regeneratingArenas) {
-                                regeneratingArenas.remove(arenaName);
-                                logger.info("[ArenaRegen] Removed from regeneratingArenas (data still not loaded): "
-                                        + arenaName);
-                            }
-                            if (sender != null) {
-                                sender.sendMessage(prefix + ChatColor.RED
-                                        + " Failed to load arena data. The arena file may be corrupted.");
-                            }
-                            return;
-                        }
-
-                        logger.info("[ArenaRegen] Block data successfully loaded for arena '" + arenaName
-                                + "', proceeding with regeneration");
-                        proceedWithRegeneration(arenaName, sender, regionData, world);
-                    })).exceptionally(e -> {
-                        Bukkit.getScheduler().runTask(this, () -> {
+                logger.info("[ArenaRegen] Block data successfully loaded for arena '" + arenaName
+                        + "', proceeding with regeneration");
+                proceedWithRegeneration(arenaName, sender, regionData, world);
+            })).exceptionally(e -> {
+                timeoutTask.cancel();
+                Bukkit.getScheduler().runTask(this, () -> {
                             synchronized (regeneratingArenas) {
                                 regeneratingArenas.remove(arenaName);
                                 logger.info("[ArenaRegen] Removed from regeneratingArenas (exception): " + arenaName);

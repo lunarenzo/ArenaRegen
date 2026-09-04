@@ -114,6 +114,7 @@ public class PlayerMoveListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        messageCooldowns.remove(player.getUniqueId());
         checkArenaOccupancy(player, player.getLocation(), null);
     }
 
