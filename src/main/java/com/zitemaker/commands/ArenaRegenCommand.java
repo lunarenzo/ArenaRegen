@@ -282,6 +282,7 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
 
                                 regionData.saveToDatc(datcFile)
                                         .thenRun(() -> Bukkit.getScheduler().runTask(plugin, () -> {
+                                            regionData.clearBlockData();
                                             plugin.markRegionDirty(regionName);
                                             clearSelection(player);
                                             if (plugin.getPlayerMoveListener() != null) {
@@ -525,6 +526,7 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
 
                                 regionData.saveToDatc(datcFile)
                                         .thenRun(() -> Bukkit.getScheduler().runTask(plugin, () -> {
+                                            regionData.clearBlockData();
                                             clearSelection(player);
                                             commandSender.sendMessage(pluginPrefix + " "
                                                     + regionResized.replace("{arena_name}", regionName));

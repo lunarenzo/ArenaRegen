@@ -162,6 +162,8 @@ public final class ArenaDeltaListener implements Listener {
         List<Block> blocks = event.getBlocks();
         for (Block block : blocks) {
             recordBlockIfInsideRegion(block, block.getBlockData());
+            Block targetBlock = block.getRelative(event.getDirection());
+            recordBlockIfInsideRegion(targetBlock, targetBlock.getBlockData());
         }
     }
 
@@ -170,6 +172,8 @@ public final class ArenaDeltaListener implements Listener {
         List<Block> blocks = event.getBlocks();
         for (Block block : blocks) {
             recordBlockIfInsideRegion(block, block.getBlockData());
+            Block targetBlock = block.getRelative(event.getDirection());
+            recordBlockIfInsideRegion(targetBlock, targetBlock.getBlockData());
         }
     }
 
