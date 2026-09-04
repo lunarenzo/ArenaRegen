@@ -199,7 +199,9 @@ public class RegionData {
             }
             sectionBlocks.put(location, blockData);
             if (world != null) {
-                BlockState state = world.getBlockAt(location).getState();
+                Material mat = blockData.getMaterial();
+                if (isBannerMaterial(mat) || isSignMaterial(mat)) {
+                    BlockState state = world.getBlockAt(location).getState();
                 if (state instanceof Banner) {
                     Banner banner = (Banner) state;
                     Map<String, Object> bannerData = new HashMap<>();

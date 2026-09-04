@@ -957,9 +957,8 @@ public class ArenaRegen extends JavaPlugin {
                     int chunkX = update.getX() >> 4;
                     int chunkZ = update.getZ() >> 4;
                     try {
-                        Chunk chunk = world.getChunkAt(chunkX, chunkZ);
-                        if (chunk.isLoaded()) {
-                            affectedChunks.add(chunk);
+                        if (world.isChunkLoaded(chunkX, chunkZ)) {
+                            affectedChunks.add(world.getChunkAt(chunkX, chunkZ));
                         }
                     } catch (Exception ignored) {
                     }
@@ -1301,14 +1300,13 @@ public class ArenaRegen extends JavaPlugin {
 
                             Bukkit.getScheduler().runTaskLater(this, () -> {
 
-                                Set<Chunk> chunksToRefresh = new HashSet<>();
+                                 Set<Chunk> chunksToRefresh = new HashSet<>();
                                 for (long packedCoord : chunkCoordsToRefresh) {
                                     int chunkX = (int) (packedCoord >> 32);
                                     int chunkZ = (int) packedCoord;
                                     try {
-                                        Chunk chunk = world.getChunkAt(chunkX, chunkZ);
-                                        if (chunk.isLoaded()) {
-                                            chunksToRefresh.add(chunk);
+                                        if (world.isChunkLoaded(chunkX, chunkZ)) {
+                                            chunksToRefresh.add(world.getChunkAt(chunkX, chunkZ));
                                         }
                                     } catch (Exception ignored) {
                                     }
@@ -1321,12 +1319,12 @@ public class ArenaRegen extends JavaPlugin {
                                             if (dx == 0 && dz == 0)
                                                 continue;
                                             try {
-                                                Chunk neighborChunk = world.getChunkAt(chunk.getX() + dx,
-                                                        chunk.getZ() + dz);
-                                                if (neighborChunk.isLoaded()) {
-                                                    extendedChunks.add(neighborChunk);
+                                                int nx = chunk.getX() + dx;
+                                                int nz = chunk.getZ() + dz;
+                                                if (world.isChunkLoaded(nx, nz)) {
+                                                    extendedChunks.add(world.getChunkAt(nx, nz));
                                                 }
-                                            } catch (Exception e) {
+                                            } catch (Exception ignored) {
                                             }
                                         }
                                     }
