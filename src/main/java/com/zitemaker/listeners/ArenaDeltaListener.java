@@ -186,8 +186,10 @@ public final class ArenaDeltaListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.getAction() == Action.PHYSICAL && event.getClickedBlock() != null) {
-            Block block = event.getClickedBlock();
+        Block block = event.getClickedBlock();
+        if (block == null) return;
+
+        if (event.getAction() == Action.PHYSICAL || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             recordBlockIfInsideRegion(block, block.getBlockData());
         }
     }

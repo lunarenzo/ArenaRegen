@@ -34,7 +34,7 @@ public final class EntitySerializer {
         registerSerializer(EntityType.MINECART, EntitySerializer::serializeMinecart, EntitySerializer::deserializeMinecart);
         registerSerializer(EntityType.ARROW, EntitySerializer::serializeArrow, EntitySerializer::deserializeArrow);
         registerSerializer(EntityType.ITEM, EntitySerializer::serializeItem, EntitySerializer::deserializeItem);
-        registerSerializer(EntityType.FIREBALL, EntitySerializer::serializeFireball, EntitySerializer::deserializeFireball);
+        registerSerializer(EntityType.ARMOR_STAND, EntitySerializer::serializeArmorStand, EntitySerializer::deserializeArmorStand);
     }
 
     @FunctionalInterface
@@ -499,5 +499,67 @@ public final class EntitySerializer {
         Zombie zombie = (Zombie) entity;
         Optional.ofNullable(data.get("isBaby"))
                 .ifPresent(baby -> zombie.setBaby(getBoolean(data, "isBaby", false)));
+    }
+
+    private static Map<String, Object> serializeEulerAngle(org.bukkit.util.EulerAngle angle) {
+        if (angle == null) return new HashMap<>();
+        Map<String, Object> map = new HashMap<>();
+        map.put("x", angle.getX());
+        map.put("y", angle.getY());
+        map.put("z", angle.getZ());
+        return map;
+    }
+
+    private static org.bukkit.util.EulerAngle deserializeEulerAngle(Object data) {
+        if (!(data instanceof Map<?, ?> rawMap)) return new org.bukkit.util.EulerAngle(0, 0, 0);
+        Map<String, Object> map = new HashMap<>();
+        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+            if (entry.getKey() instanceof String key) map.put(key, entry.getValue());
+        }
+        return new org.bukkit.util.EulerAngle(
+                getDouble(map, "x", 0.0),
+                getDouble(map, "y", 0.0),
+                getDouble(map, "z", 0.0)
+        );
+    }
+
+    private static void serializeArmorStand(Entity entity, Map<String, Object> data) {
+        ArmorStand armorStand = (ArmorStand) entity;
+        data.put("hasArms", armorStand.hasArms());
+        data.put("hasBasePlate", armorStand.hasBasePlate());
+        data.put("isSmall", armorStand.isSmall());
+        data.put("isVisible", armorStand.isVisible());
+        data.put("isMarker", armorStand.isMarker());
+
+        Map<String, Object> poses = new HashMap<>();
+        poses.put("head", serializeEulerAngle(armorStand.getHeadPose()));
+        poses.put("body", serializeEulerAngle(armorStand.getBodyPose()));
+        poses.put("leftArm", serializeEulerAngle(armorStand.getLeftArmPose()));
+        poses.put("rightArm", serializeEulerAngle(armorStand.getRightArmPose()));
+        poses.put("leftLeg", serializeEulerAngle(armorStand.getLeftLegPose()));
+        poses.put("rightLeg", serializeEulerAngle(armorStand.getRightLegPose()));
+        data.put("poses", poses);
+    }
+
+    private static void deserializeArmorStand(Entity entity, Map<String, Object> data) {
+        ArmorStand armorStand = (ArmorStand) entity;
+        if (data.containsKey("hasArms")) armorStand.setArms(getBoolean(data, "hasArms", false));
+        if (data.containsKey("hasBasePlate")) armorStand.setBasePlate(getBoolean(data, "hasBasePlate", true));
+        if (data.containsKey("isSmall")) armorStand.setSmall(getBoolean(data, "isSmall", false));
+        if (data.containsKey("isVisible")) armorStand.setVisible(getBoolean(data, "isVisible", true));
+        if (data.containsKey("isMarker")) armorStand.setMarker(getBoolean(data, "isMarker", false));
+
+        if (data.get("poses") instanceof Map<?, ?> rawPoses) {
+            Map<String, Object> poses = new HashMap<>();
+            for (Map.Entry<?, ?> entry : rawPoses.entrySet()) {
+                if (entry.getKey() instanceof String key) poses.put(key, entry.getValue());
+            }
+            if (poses.containsKey("head")) armorStand.setHeadPose(deserializeEulerAngle(poses.get("head")));
+            if (poses.containsKey("body")) armorStand.setBodyPose(deserializeEulerAngle(poses.get("body")));
+            if (poses.containsKey("leftArm")) armorStand.setLeftArmPose(deserializeEulerAngle(poses.get("leftArm")));
+            if (poses.containsKey("rightArm")) armorStand.setRightArmPose(deserializeEulerAngle(poses.get("rightArm")));
+            if (poses.containsKey("leftLeg")) armorStand.setLeftLegPose(deserializeEulerAngle(poses.get("leftLeg")));
+            if (poses.containsKey("rightLeg")) armorStand.setRightLegPose(deserializeEulerAngle(poses.get("rightLeg")));
+        }
     }
 }
