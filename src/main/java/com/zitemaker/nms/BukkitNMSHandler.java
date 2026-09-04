@@ -42,38 +42,21 @@ public class BukkitNMSHandler implements NMSHandler {
 
         if (plugin == null) return;
 
-        int batchSize = Math.min(3, chunks.size() - index);
+        int batchSize = Math.min(64, chunks.size() - index);
         for (int i = 0; i < batchSize; i++) {
             Chunk chunk = chunks.get(index + i);
             try {
-
                 int chunkX = chunk.getX();
                 int chunkZ = chunk.getZ();
-                
-
                 world.refreshChunk(chunkX, chunkZ);
-
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    try {
-                        for (int dx = -1; dx <= 1; dx++) {
-                            for (int dz = -1; dz <= 1; dz++) {
-                                if (world.isChunkLoaded(chunkX + dx, chunkZ + dz)) {
-                                    world.refreshChunk(chunkX + dx, chunkZ + dz);
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                    }
-                }, 10L);
-                
             } catch (Exception e) {
-                Bukkit.getLogger().warning("Failed delayed chunk refresh " + chunk.getX() + "," + chunk.getZ() + ": " + e.getMessage());
+                Bukkit.getLogger().warning("Failed chunk refresh " + chunk.getX() + "," + chunk.getZ() + ": " + e.getMessage());
             }
         }
 
         if (index + batchSize < chunks.size()) {
             final JavaPlugin finalPlugin = plugin;
-            Bukkit.getScheduler().runTaskLater(finalPlugin, () -> processChunks(world, chunks, index + batchSize), 3L);
+            Bukkit.getScheduler().runTaskLater(finalPlugin, () -> processChunks(world, chunks, index + batchSize), 1L);
         }
     }
 }
