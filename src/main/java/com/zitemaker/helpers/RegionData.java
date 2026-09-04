@@ -244,6 +244,7 @@ public class RegionData {
                 }
             }
         }
+        }
         sectionedBlockData.put(sectionName, sectionBlocks);
     }
 
