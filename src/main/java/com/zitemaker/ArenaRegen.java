@@ -963,6 +963,13 @@ public class ArenaRegen extends JavaPlugin {
                     NMSHandlerFactoryProvider.getNMSHandler().relightChunks(world, new ArrayList<>(affectedChunks), updates);
                 }
 
+                File datcFile = regionData.getDatcFile();
+                if (datcFile != null) {
+                    File deltaFile = new File(datcFile.getParent(), datcFile.getName().replace(".datc", ".delta"));
+                    if (deltaFile.exists()) {
+                        deltaFile.delete();
+                    }
+                }
                 deltaLedger.clear();
                 long timeTaken = System.currentTimeMillis() - startTime;
                 if (sender != null) {

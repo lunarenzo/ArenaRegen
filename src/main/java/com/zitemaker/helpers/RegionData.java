@@ -407,67 +407,76 @@ public class RegionData {
         CompletableFuture<Void> future = new CompletableFuture<>();
         long startTime = System.currentTimeMillis();
 
-        
-        
-        int bufferSize = calculateBufferSize();
+        File deltaFile = new File(datcFile.getParent(), datcFile.getName().replace(".datc", ".delta"));
+        deltaLedger.saveToFile(deltaFile);
 
-        
-        int sectionCount = sectionedBlockData.size();
-        long totalBlocks = sectionedBlockData.values().stream().mapToLong(Map::size).sum();
-        int entityCount = entityDataMap.size();
-        int bannerCount = bannerStates.size();
-        int signCount = signStates.size();
-        int modifiedCount = modifiedBlocks.size();
+        Map<String, Map<Location, BlockData>> sectionedBlockDataCopy = new ConcurrentHashMap<>(sectionedBlockData);
+        Map<Location, Map<String, Object>> entityDataMapCopy = new ConcurrentHashMap<>(entityDataMap);
+        Map<Location, Map<String, Object>> bannerStatesCopy = new ConcurrentHashMap<>(bannerStates);
+        Map<Location, Map<String, Object>> signStatesCopy = new ConcurrentHashMap<>(signStates);
+        Map<Location, BlockData> modifiedBlocksCopy = new ConcurrentHashMap<>(modifiedBlocks);
+
+        int bufferSize = calculateBufferSize();
+        int sectionCount = sectionedBlockDataCopy.size();
+        long totalBlocks = sectionedBlockDataCopy.values().stream().mapToLong(Map::size).sum();
+        int entityCount = entityDataMapCopy.size();
+        int bannerCount = bannerStatesCopy.size();
+        int signCount = signStatesCopy.size();
+        int modifiedCount = modifiedBlocksCopy.size();
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-            File backupFile = new File(datcFile.getParent(), datcFile.getName() + ".bak");
+                File backupFile = new File(datcFile.getParent(), datcFile.getName() + ".bak");
                 if (datcFile.exists()) {
                     if (!datcFile.renameTo(backupFile)) {
-                
                     }
-            }
+                }
 
-            try (FileOutputStream fos = new FileOutputStream(datcFile);
-                 BufferedOutputStream bos = new BufferedOutputStream(fos, bufferSize);
+                try (FileOutputStream fos = new FileOutputStream(datcFile);
+                     BufferedOutputStream bos = new BufferedOutputStream(fos, bufferSize);
                      GZIPOutputStream gzip = new GZIPOutputStream(bos) {{ def.setLevel(GZIP_COMPRESSION_LEVEL); }};
-                 DataOutputStream dos = new DataOutputStream(gzip)) {
+                     DataOutputStream dos = new DataOutputStream(gzip)) {
 
-                String header = fileFormatVersion + "," + creator + "," + creationDate + "," + worldName + "," +
-                        minecraftVersion + "," + minX + "," + minY + "," + minZ + "," +
-                        width + "," + height + "," + depth;
-                if (spawnLocation != null) {
-                    header += "," + spawnLocation.getX() + "," + spawnLocation.getY() + "," + spawnLocation.getZ() +
-                            "," + spawnLocation.getYaw() + "," + spawnLocation.getPitch();
-                } else {
-                    header += ",0,0,0,0,0";
+                    String header = fileFormatVersion + "," + creator + "," + creationDate + "," + worldName + "," +
+                            minecraftVersion + "," + minX + "," + minY + "," + minZ + "," +
+                            width + "," + height + "," + depth;
+                    if (spawnLocation != null) {
+                        header += "," + spawnLocation.getX() + "," + spawnLocation.getY() + "," + spawnLocation.getZ() +
+                                "," + spawnLocation.getYaw() + "," + spawnLocation.getPitch();
+                    } else {
+                        header += ",0,0,0,0,0";
+                    }
+                    header += "," + locked;
+                    dos.writeBytes(header);
+                    dos.writeByte('\n');
+
+                    writeSections(dos, sectionedBlockDataCopy);
+                    writeEntities(dos, entityDataMapCopy);
+                    writeBanners(dos, bannerStatesCopy);
+                    writeSigns(dos, signStatesCopy);
+                    writeModifiedBlocks(dos, modifiedBlocksCopy);
+                    dos.flush();
+
+                } catch (IOException e) {
+                    if (backupFile.exists()) {
+                        if (datcFile.exists()) datcFile.delete();
+                        backupFile.renameTo(datcFile);
+                    }
+                    future.completeExceptionally(e);
+                    return;
                 }
-                header += "," + locked;
-                dos.writeBytes(header);
-                dos.writeByte('\n');
 
-                
-                writeSections(dos, sectionedBlockData);
-                writeEntities(dos, entityDataMap);
-                writeBanners(dos, bannerStates);
-                writeSigns(dos, signStates);
-                writeModifiedBlocks(dos, modifiedBlocks);
-                dos.flush();
+                long timeTaken = System.currentTimeMillis() - startTime;
+                long fileSize = datcFile.length();
+                LOGGER.info("[ArenaRegen] Saved RegionData to " + datcFile.getName() + " (" + (fileSize / 1024) + " KB, " + timeTaken + "ms). Delta size: " + deltaLedger.size() + " blocks.");
 
-            } catch (IOException e) {
-                if (backupFile.exists()) {
-                    if (datcFile.exists()) datcFile.delete();
-                    backupFile.renameTo(datcFile);
-                }
+                future.complete(null);
+            } catch (Exception e) {
                 future.completeExceptionally(e);
-                return;
             }
+        });
 
-            long timeTaken = System.currentTimeMillis() - startTime;
-            long fileSize = datcFile.length();
-            LOGGER.info("[ArenaRegen] Saved RegionData to " + datcFile.getName() + ": " +
-                        sectionCount + " sections, " + totalBlocks + " total blocks, " +
-                        entityCount + " entities, " + bannerCount + " banners, " + signCount + " signs, " +
+        return future;
                         modifiedCount + " modified blocks. " +
                     "File size: " + (fileSize / 1024) + " KB, Time: " + timeTaken + "ms");
 
@@ -821,28 +830,14 @@ public class RegionData {
                         locked = false;
                     }
 
-                    readSections(dis, world);
-                    readEntities(dis, world);
-                    if (fileVersion.equals("4")) {
-                        readBanners(dis, world, fileVersion);
-                        readSigns(dis, world, fileVersion);
-                    } else {
-                        bannerStates.clear();
-                        signStates.clear();
-                    }
-                    readModifiedBlocks(dis, world);
+                    File deltaFile = new File(datcFile.getParent(), datcFile.getName().replace(".datc", ".delta"));
+                    deltaLedger.loadFromFile(deltaFile);
 
                     isBlockDataLoaded = true;
 
                     long timeTaken = System.currentTimeMillis() - startTime;
                     long fileSize = datcFile.length();
-                    
-                    long totalBlocks = sectionedBlockData.values().stream().mapToLong(Map::size).sum();
-                    LOGGER.info("[ArenaRegen] Loaded RegionData for file " + datcFile.getName() + ": " +
-                            sectionedBlockData.size() + " sections, " + totalBlocks + " total blocks, " +
-                            entityDataMap.size() + " entities, " + bannerStates.size() + " banners, " + signStates.size() + " signs, " +
-                            modifiedBlocks.size() + " modified blocks. " +
-                            "Locked: " + locked + ", File size: " + (fileSize / 1024) + " KB, Time: " + timeTaken + "ms");
+                    LOGGER.info("[ArenaRegen] Loaded metadata & delta for " + datcFile.getName() + " (" + (fileSize / 1024) + " KB, " + timeTaken + "ms). Delta size: " + deltaLedger.size() + " blocks.");
 
                     future.complete(null);
                 }
