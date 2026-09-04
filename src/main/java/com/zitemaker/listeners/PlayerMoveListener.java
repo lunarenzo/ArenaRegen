@@ -125,14 +125,14 @@ public class PlayerMoveListener implements Listener {
     }
 
     private String getRegionName(RegionData region) {
-        File file = region.getDatcFile();
-        if (file != null) {
-            return file.getName().replace(".datc", "");
-        }
         for (Map.Entry<String, RegionData> entry : plugin.getRegisteredRegions().entrySet()) {
             if (entry.getValue() == region) {
                 return entry.getKey();
             }
+        }
+        File file = region.getDatcFile();
+        if (file != null) {
+            return file.getName().replace(".datc", "");
         }
         return null;
     }
@@ -173,17 +173,19 @@ public class PlayerMoveListener implements Listener {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             int count = getPlayersInArena(arenaName);
             if (count == 0 && !plugin.isArenaRegenerating(arenaName)) {
-                if (!emptyRegenTasks.containsKey(arenaName)) {
-                    BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        emptyRegenTasks.remove(arenaName);
-                        if (getPlayersInArena(arenaName) == 0 && !plugin.isArenaRegenerating(arenaName)) {
-                            plugin.regenerateArena(arenaName, null);
-                        }
-                    }, plugin.regenerateOnEmptyDelay * 20L);
-
-                    emptyRegenTasks.put(arenaName, task);
-                    plugin.getLogger().info("Arena '" + arenaName + "' is empty. Regeneration scheduled in " + plugin.regenerateOnEmptyDelay + "s.");
+                BukkitTask oldTask = emptyRegenTasks.remove(arenaName);
+                if (oldTask != null) {
+                    oldTask.cancel();
                 }
+                BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    emptyRegenTasks.remove(arenaName);
+                    if (getPlayersInArena(arenaName) == 0 && !plugin.isArenaRegenerating(arenaName)) {
+                        plugin.regenerateArena(arenaName, null);
+                    }
+                }, plugin.regenerateOnEmptyDelay * 20L);
+
+                emptyRegenTasks.put(arenaName, task);
+                plugin.getLogger().info("Arena '" + arenaName + "' is empty. Regeneration scheduled in " + plugin.regenerateOnEmptyDelay + "s.");
             }
         }, 1L);
     }

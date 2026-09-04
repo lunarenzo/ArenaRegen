@@ -965,6 +965,12 @@ public class ArenaRegen extends JavaPlugin {
                 }
 
                 if (!affectedChunks.isEmpty()) {
+                    for (Chunk chunk : affectedChunks) {
+                        try {
+                            world.refreshChunk(chunk.getX(), chunk.getZ());
+                        } catch (Exception ignored) {
+                        }
+                    }
                     NMSHandlerFactoryProvider.getNMSHandler().relightChunks(world, new ArrayList<>(affectedChunks), updates);
                 }
 

@@ -76,6 +76,11 @@ public class NMSHandler_1_21 implements NMSHandler {
                 section.setBlockState(x & 15, y & 15, z & 15,
                         ((CraftBlockData) update.getBlockData()).getState());
             }
+
+            for (LevelChunk chunk : chunkCache.values()) {
+                chunk.setUnsaved(true);
+                world.refreshChunk(chunk.getPos().x, chunk.getPos().z);
+            }
         } catch (Throwable t) {
             LOGGER.warning("NMS failed, falling back to Bukkit API: " + t.getMessage());
             new BukkitNMSHandler().setBlocks(world, blockUpdates);
