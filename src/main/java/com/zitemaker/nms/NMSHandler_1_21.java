@@ -99,7 +99,7 @@ public class NMSHandler_1_21 implements NMSHandler {
         if (index >= chunks.size())
             return;
 
-        int batchSize = Math.min(3, chunks.size() - index);
+        int batchSize = Math.min(64, chunks.size() - index);
 
         Bukkit.getScheduler().runTask(plugin, () -> {
             try {
@@ -147,7 +147,7 @@ public class NMSHandler_1_21 implements NMSHandler {
                 if (index + batchSize < chunks.size()) {
                     Bukkit.getScheduler().runTaskLater(plugin,
                             () -> processChunksWithLighting(world, chunks, index + batchSize),
-                            3L);
+                            1L);
                 }
             } catch (Throwable t) {
                 LOGGER.warning("Lighting engine failed, falling back to simple chunk refresh: " + t.getMessage());
@@ -162,7 +162,7 @@ public class NMSHandler_1_21 implements NMSHandler {
                 if (index + batchSize < chunks.size()) {
                     Bukkit.getScheduler().runTaskLater(plugin,
                             () -> processChunksWithLighting(world, chunks, index + batchSize),
-                            3L);
+                            1L);
                 }
             }
         });

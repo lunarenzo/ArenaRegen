@@ -1341,6 +1341,7 @@ public class ArenaRegen extends JavaPlugin {
                                 logger.info("[ArenaRegen] Removed from regeneratingArenas (completed): " + arenaName);
                             }
                             task.cancel();
+                            regionData.clearBlockData();
                             if (regionData.isLocked()) {
                                 regionData.setLocked(false);
                                 logger.info(

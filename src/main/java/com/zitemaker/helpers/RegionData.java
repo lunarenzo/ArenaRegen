@@ -823,7 +823,7 @@ public class RegionData {
                     File deltaFile = new File(datcFile.getParent(), datcFile.getName().replace(".datc", ".delta"));
                     deltaLedger.loadFromFile(deltaFile);
 
-                    isBlockDataLoaded = true;
+                    isBlockDataLoaded = false;
 
                     long timeTaken = System.currentTimeMillis() - startTime;
                     long fileSize = datcFile.length();
@@ -1153,69 +1153,58 @@ public class RegionData {
     }
 
     public synchronized CompletableFuture<Void> ensureBlockDataLoaded() {
-        if (isBlockDataLoaded) {
+        if (isBlockDataLoaded && !sectionedBlockData.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
         if (blockDataLoadFuture != null && !blockDataLoadFuture.isDone()) {
             return blockDataLoadFuture;
         }
-        
+
         blockDataLoadFuture = CompletableFuture.runAsync(() -> {
-            if (isLoading) {
-                throw new RuntimeException("Recursive loading detected for region in " + (datcFile != null ? datcFile.getName() : "unknown file"));
+            if (datcFile == null || !datcFile.exists()) {
+                throw new RuntimeException("Datc file does not exist: " + (datcFile != null ? datcFile.getAbsolutePath() : "null"));
+            }
+            World world = Bukkit.getWorld(worldName);
+            if (world == null) {
+                throw new RuntimeException("World '" + worldName + "' not found for region in " + datcFile.getName());
             }
 
-            if (!sectionedBlockData.isEmpty()) {
+            try (FileInputStream fis = new FileInputStream(datcFile);
+                 BufferedInputStream bis = new BufferedInputStream(fis, 65536);
+                 GZIPInputStream gzip = new GZIPInputStream(bis);
+                 DataInputStream dis = new DataInputStream(gzip)) {
+
+                String header = readHeader(dis);
+                String[] headerParts = header.split(",");
+                String fileVersion = headerParts.length > 0 ? headerParts[0] : FILE_FORMAT_VERSION;
+
+                readSections(dis, world);
+                readEntities(dis, world);
+                readBanners(dis, world, fileVersion);
+                readSigns(dis, world, fileVersion);
+                readModifiedBlocks(dis, world);
+
                 isBlockDataLoaded = true;
-                return;
-            }
-
-            if (!isBlockDataLoaded && datcFile != null) {
-                if (!datcFile.exists()) {
-                    throw new RuntimeException("Datc file does not exist: " + datcFile.getAbsolutePath());
-                }
-                
-                if (!datcFile.canRead()) {
-                    throw new RuntimeException("Cannot read datc file: " + datcFile.getAbsolutePath());
-                }
-                
-                if (loadFailed) {
-                    throw new RuntimeException("Block data loading previously failed for region in " + datcFile.getName());
-                }
-
-                World world = Bukkit.getWorld(worldName);
-                if (world == null) {
-                    loadFailed = true;
-                    throw new RuntimeException("World '" + worldName + "' not found for region in " + datcFile.getName());
-                }
-            }
-        }).thenCompose(v -> {
-
-            if (!isBlockDataLoaded && datcFile != null) {
-                try {
-                    isLoading = true;
-                    return loadFromDatc(datcFile).whenComplete((result, ex) -> {
-                        isLoading = false;
-                        if (ex != null) {
-                            LOGGER.severe("[ArenaRegen] Exception during loadFromDatc for " + datcFile.getName() + ": " + ex.getMessage());
-                            ex.printStackTrace();
-                        }
-                    });
-                } catch (Exception e) {
-                    isLoading = false;
-                    LOGGER.severe("[ArenaRegen] Exception during loadFromDatc for " + datcFile.getName() + ": " + e.getMessage());
-                    e.printStackTrace();
-                    throw new RuntimeException("Failed to load region data", e);
-                }
-            } else {
-                return CompletableFuture.completedFuture(null);
+            } catch (Exception e) {
+                LOGGER.severe("[ArenaRegen] Failed to load full section block data for " + datcFile.getName() + ": " + e.getMessage());
+                throw new RuntimeException("Failed to read block section data from " + datcFile.getName(), e);
             }
         }).whenComplete((v, ex) -> {
             if (ex != null) {
                 blockDataLoadFuture = null;
             }
         });
+
         return blockDataLoadFuture;
+    }
+
+    public void clearBlockData() {
+        sectionedBlockData.clear();
+        entityDataMap.clear();
+        bannerStates.clear();
+        signStates.clear();
+        modifiedBlocks.clear();
+        isBlockDataLoaded = false;
     }
 
     public CompletableFuture<Map<String, Map<Location, BlockData>>> getSectionedBlockData() {

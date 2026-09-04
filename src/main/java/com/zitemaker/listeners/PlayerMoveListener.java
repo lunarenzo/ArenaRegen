@@ -14,10 +14,11 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.util.BoundingBox;
 
-import java.util.HashMap;
+import java.io.File;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,24 +28,14 @@ public class PlayerMoveListener implements Listener {
     private final Map<UUID, Long> messageCooldowns = new ConcurrentHashMap<>();
     private static final long MESSAGE_COOLDOWN_MS = 3000;
 
-    private final Map<String, BoundingBox> regionBounds = new ConcurrentHashMap<>();
     private final Map<String, BukkitTask> emptyRegenTasks = new ConcurrentHashMap<>();
 
     public PlayerMoveListener(ArenaRegen plugin) {
         this.plugin = plugin;
-        updateRegionBounds();
     }
 
     public void updateRegionBounds() {
-        regionBounds.clear();
-        for (Map.Entry<String, RegionData> entry : plugin.getRegisteredRegions().entrySet()) {
-            RegionData region = entry.getValue();
-            BoundingBox box = new BoundingBox(
-                    region.getMinX(), region.getMinY(), region.getMinZ(),
-                    region.getMaxX(), region.getMaxY(), region.getMaxZ()
-            );
-            regionBounds.put(entry.getKey(), box);
-        }
+        // SpatialRegionIndex maintains chunk mapping dynamically
     }
 
     @EventHandler
@@ -62,26 +53,25 @@ public class PlayerMoveListener implements Listener {
         Location safeLoc = null;
         boolean shouldCancel = false;
 
-        for (Map.Entry<String, RegionData> entry : plugin.getRegisteredRegions().entrySet()) {
-            String regionName = entry.getKey();
-            RegionData region = entry.getValue();
-            if (!region.isLocked()) continue;
+        Set<RegionData> regions = plugin.getSpatialRegionIndex().getRegionsInChunk(x >> 4, z >> 4);
+        if (!regions.isEmpty()) {
+            for (RegionData region : regions) {
+                if (!region.isLocked()) continue;
+                if (!region.getWorldName().equals(world.getName())) continue;
 
-            BoundingBox box = regionBounds.get(regionName);
-            if (box == null || !region.getWorldName().equals(world.getName())) continue;
+                if (region.containsLocation(world, x, y, z)) {
+                    long currentTime = System.currentTimeMillis();
+                    UUID playerId = player.getUniqueId();
+                    Long lastMessageTime = messageCooldowns.get(playerId);
+                    if (lastMessageTime == null || currentTime - lastMessageTime > MESSAGE_COOLDOWN_MS) {
+                        player.sendMessage(plugin.prefix + ChatColor.RED + " This arena is currently locked!");
+                        messageCooldowns.put(playerId, currentTime);
+                    }
 
-            if (box.contains(x + 0.5, y + 0.5, z + 0.5)) {
-                long currentTime = System.currentTimeMillis();
-                UUID playerId = player.getUniqueId();
-                Long lastMessageTime = messageCooldowns.get(playerId);
-                if (lastMessageTime == null || currentTime - lastMessageTime > MESSAGE_COOLDOWN_MS) {
-                    player.sendMessage(plugin.prefix + ChatColor.RED + " This arena is currently locked!");
-                    messageCooldowns.put(playerId, currentTime);
+                    safeLoc = findSafeLocationOutsideArena(player, region, from);
+                    shouldCancel = true;
+                    break;
                 }
-
-                safeLoc = findSafeLocationOutsideArena(player, region, from);
-                shouldCancel = true;
-                break;
             }
         }
 
@@ -104,18 +94,17 @@ public class PlayerMoveListener implements Listener {
         World world = to.getWorld();
         int x = to.getBlockX(), y = to.getBlockY(), z = to.getBlockZ();
 
-        for (Map.Entry<String, RegionData> entry : plugin.getRegisteredRegions().entrySet()) {
-            String regionName = entry.getKey();
-            RegionData region = entry.getValue();
-            if (!region.isLocked()) continue;
+        Set<RegionData> regions = plugin.getSpatialRegionIndex().getRegionsInChunk(x >> 4, z >> 4);
+        if (!regions.isEmpty()) {
+            for (RegionData region : regions) {
+                if (!region.isLocked()) continue;
+                if (!region.getWorldName().equals(world.getName())) continue;
 
-            BoundingBox box = regionBounds.get(regionName);
-            if (box == null || !region.getWorldName().equals(world.getName())) continue;
-
-            if (box.contains(x + 0.5, y + 0.5, z + 0.5)) {
-                event.setCancelled(true);
-                player.sendMessage(plugin.prefix + ChatColor.RED + " This arena is currently regenerating and locked! Teleportation cancelled.");
-                return;
+                if (region.containsLocation(world, x, y, z)) {
+                    event.setCancelled(true);
+                    player.sendMessage(plugin.prefix + ChatColor.RED + " This arena is currently regenerating and locked! Teleportation cancelled.");
+                    return;
+                }
             }
         }
 
@@ -134,17 +123,41 @@ public class PlayerMoveListener implements Listener {
         checkArenaOccupancy(player, player.getLocation(), null);
     }
 
+    private String getRegionName(RegionData region) {
+        File file = region.getDatcFile();
+        if (file != null) {
+            return file.getName().replace(".datc", "");
+        }
+        for (Map.Entry<String, RegionData> entry : plugin.getRegisteredRegions().entrySet()) {
+            if (entry.getValue() == region) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
     private void checkArenaOccupancy(Player player, Location locFrom, Location locTo) {
         if (!plugin.regenerateOnEmpty) return;
 
-        for (Map.Entry<String, RegionData> entry : plugin.getRegisteredRegions().entrySet()) {
-            String regionName = entry.getKey();
-            RegionData region = entry.getValue();
-            BoundingBox box = regionBounds.get(regionName);
-            if (box == null || !region.getWorldName().equals(player.getWorld().getName())) continue;
+        World world = player.getWorld();
+        Set<RegionData> candidateRegions = new HashSet<>();
+        if (locFrom != null) {
+            candidateRegions.addAll(plugin.getSpatialRegionIndex().getRegionsInChunk(locFrom.getBlockX() >> 4, locFrom.getBlockZ() >> 4));
+        }
+        if (locTo != null) {
+            candidateRegions.addAll(plugin.getSpatialRegionIndex().getRegionsInChunk(locTo.getBlockX() >> 4, locTo.getBlockZ() >> 4));
+        }
 
-            boolean wasInside = locFrom != null && box.contains(locFrom.getX(), locFrom.getY(), locFrom.getZ());
-            boolean isInside = locTo != null && box.contains(locTo.getX(), locTo.getY(), locTo.getZ());
+        if (candidateRegions.isEmpty()) return;
+
+        for (RegionData region : candidateRegions) {
+            if (!region.getWorldName().equals(world.getName())) continue;
+
+            boolean wasInside = locFrom != null && region.containsLocation(world, locFrom.getBlockX(), locFrom.getBlockY(), locFrom.getBlockZ());
+            boolean isInside = locTo != null && region.containsLocation(world, locTo.getBlockX(), locTo.getBlockY(), locTo.getBlockZ());
+
+            String regionName = getRegionName(region);
+            if (regionName == null) continue;
 
             if (wasInside && !isInside) {
                 handlePlayerLeft(regionName);
@@ -185,15 +198,13 @@ public class PlayerMoveListener implements Listener {
     private int getPlayersInArena(String arenaName) {
         RegionData region = plugin.getRegisteredRegions().get(arenaName);
         if (region == null) return 0;
-        BoundingBox box = regionBounds.get(arenaName);
-        if (box == null) return 0;
         World world = Bukkit.getWorld(region.getWorldName());
         if (world == null) return 0;
 
         int count = 0;
         for (Player player : world.getPlayers()) {
             Location loc = player.getLocation();
-            if (box.contains(loc.getX(), loc.getY(), loc.getZ())) {
+            if (region.containsLocation(world, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())) {
                 count++;
             }
         }
@@ -201,24 +212,26 @@ public class PlayerMoveListener implements Listener {
     }
 
     private Location findSafeLocationOutsideArena(Player player, RegionData region, Location from) {
-        BoundingBox box = regionBounds.get(plugin.getRegisteredRegions().entrySet().stream()
-                .filter(e -> e.getValue() == region)
-                .findFirst().get().getKey());
         double x = from.getX(), y = from.getY(), z = from.getZ();
         float yaw = from.getYaw(), pitch = from.getPitch();
 
-        double distToMinX = Math.abs(x - box.getMinX());
-        double distToMaxX = Math.abs(x - box.getMaxX());
-        double distToMinZ = Math.abs(z - box.getMinZ());
-        double distToMaxZ = Math.abs(z - box.getMaxZ());
+        double minX = region.getMinX();
+        double maxX = region.getMaxX() + 1;
+        double minZ = region.getMinZ();
+        double maxZ = region.getMaxZ() + 1;
+
+        double distToMinX = Math.abs(x - minX);
+        double distToMaxX = Math.abs(x - maxX);
+        double distToMinZ = Math.abs(z - minZ);
+        double distToMaxZ = Math.abs(z - maxZ);
         double minDist = Math.min(Math.min(distToMinX, distToMaxX), Math.min(distToMinZ, distToMaxZ));
 
-        if (minDist == distToMinX) x = box.getMinX() - 1.5;
-        else if (minDist == distToMaxX) x = box.getMaxX() + 1.5;
-        else if (minDist == distToMinZ) z = box.getMinZ() - 1.5;
-        else z = box.getMaxZ() + 1.5;
+        if (minDist == distToMinX) x = minX - 1.5;
+        else if (minDist == distToMaxX) x = maxX + 1.5;
+        else if (minDist == distToMinZ) z = minZ - 1.5;
+        else z = maxZ + 1.5;
 
-        y = Math.max(box.getMinY(), Math.min(y, box.getMaxY() + 1));
+        y = Math.max(region.getMinY(), Math.min(y, region.getMaxY() + 1));
 
         Location safeLocation = new Location(player.getWorld(), x, y, z, yaw, pitch);
 
