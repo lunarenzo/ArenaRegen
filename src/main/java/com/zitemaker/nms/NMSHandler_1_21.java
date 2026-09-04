@@ -78,7 +78,6 @@ public class NMSHandler_1_21 implements NMSHandler {
             }
 
             for (LevelChunk chunk : chunkCache.values()) {
-                chunk.setUnsaved(true);
                 world.refreshChunk(chunk.getPos().x, chunk.getPos().z);
             }
         } catch (Throwable t) {
