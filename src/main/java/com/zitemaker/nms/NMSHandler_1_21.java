@@ -52,9 +52,15 @@ public class NMSHandler_1_21 implements NMSHandler {
                     continue;
                 }
 
-                final long chunkKey = ChunkPos.asLong(x >> 4, z >> 4);
+                final int chunkX = x >> 4;
+                final int chunkZ = z >> 4;
+                if (!world.isChunkLoaded(chunkX, chunkZ)) {
+                    continue;
+                }
+
+                final long chunkKey = ChunkPos.asLong(chunkX, chunkZ);
                 final LevelChunk chunk = chunkCache.computeIfAbsent(chunkKey,
-                        key -> craftWorld.getHandle().getChunk(x >> 4, z >> 4));
+                        key -> craftWorld.getHandle().getChunk(chunkX, chunkZ));
 
                 final int sectionIndex = chunk.getSectionIndex(y);
                 if (sectionIndex < 0 || sectionIndex >= chunk.getSections().length) {
