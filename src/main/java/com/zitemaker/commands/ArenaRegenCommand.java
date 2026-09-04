@@ -22,6 +22,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -1427,6 +1428,11 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
         selections.remove(playerId);
         cancelExpiration(playerId);
         lastActionTimes.remove(playerId);
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        clearSelection(event.getPlayer());
     }
 
     private void resetExpiration(UUID playerId) {
