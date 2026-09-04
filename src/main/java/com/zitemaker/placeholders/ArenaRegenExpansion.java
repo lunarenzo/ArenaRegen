@@ -11,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ArenaRegenExpansion extends PlaceholderExpansion {
@@ -91,21 +92,23 @@ public class ArenaRegenExpansion extends PlaceholderExpansion {
 
         if (arenaName == null && player != null) {
             Location loc = player.getLocation();
-            String worldName = loc.getWorld().getName();
+            World world = loc.getWorld();
             int x = loc.getBlockX(), y = loc.getBlockY(), z = loc.getBlockZ();
 
-            for (Map.Entry<String, RegionData> entry : plugin.getRegisteredRegions().entrySet()) {
-                RegionData r = entry.getValue();
-                int minX = r.getMinX(), minY = r.getMinY(), minZ = r.getMinZ();
-                int maxX = r.getMaxX(), maxY = r.getMaxY(), maxZ = r.getMaxZ();
-
-                if (worldName.equals(r.getWorldName()) &&
-                        x >= minX && x <= maxX &&
-                        y >= minY && y <= maxY &&
-                        z >= minZ && z <= maxZ) {
-                    currentRegionName = entry.getKey();
+            Set<RegionData> candidates = plugin.getSpatialRegionIndex().getRegionsInChunk(x >> 4, z >> 4);
+            for (RegionData r : candidates) {
+                if (r.containsLocation(world, x, y, z)) {
                     currentRegion = r;
-                    //plugin.getLogger().info("Found region: " + currentRegionName + " for player at " + x + "," + y + "," + z);
+                    if (r.getDatcFile() != null) {
+                        currentRegionName = r.getDatcFile().getName().replace(".datc", "");
+                    } else {
+                        for (Map.Entry<String, RegionData> entry : plugin.getRegisteredRegions().entrySet()) {
+                            if (entry.getValue() == r) {
+                                currentRegionName = entry.getKey();
+                                break;
+                            }
+                        }
+                    }
                     break;
                 }
             }
