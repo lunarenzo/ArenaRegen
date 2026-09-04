@@ -241,6 +241,7 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
                 regionData.setDatcFile(datcFile);
 
                 plugin.getRegisteredRegions().put(regionName, regionData);
+                plugin.getSpatialRegionIndex().registerRegion(regionData);
                 long totalBlocks = (long) width * height * depth;
                 int blocksPerTick = Math.min(100000, Math.max(1000, plugin.analyzeSpeed / 20));
 
@@ -516,6 +517,7 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
                                 regionData.setBlockDataLoaded(true);
 
                                 plugin.getRegisteredRegions().put(regionName, regionData);
+                                plugin.getSpatialRegionIndex().registerRegion(regionData);
                                 plugin.markRegionDirty(regionName);
                                 if (plugin.getPlayerMoveListener() != null) {
                                     plugin.getPlayerMoveListener().updateRegionBounds();

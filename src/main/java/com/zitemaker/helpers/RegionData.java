@@ -377,6 +377,8 @@ public class RegionData {
         modifiedBlocks.clear();
         bannerStates.clear();
         signStates.clear();
+        deltaLedger.clear();
+        plugin.getSpatialRegionIndex().unregisterRegion(this);
         plugin.getPendingDeletions().remove(regionName);
         plugin.getRegisteredRegions().remove(regionName);
         plugin.regeneratingArenas.remove(regionName);

@@ -4,6 +4,7 @@ import com.zitemaker.commands.ArenaRegenCommand;
 import com.zitemaker.helpers.EntitySerializer;
 import com.zitemaker.helpers.RegionData;
 import com.zitemaker.helpers.DeltaLedger;
+import com.zitemaker.helpers.SpatialRegionIndex;
 import com.zitemaker.listeners.ArenaDeltaListener;
 import com.zitemaker.listeners.PlayerMoveListener;
 import com.zitemaker.nms.BlockUpdate;
@@ -23,6 +24,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -45,6 +47,7 @@ public class ArenaRegen extends JavaPlugin {
     private FileConfiguration messagesConfig;
 
     private final Map<String, RegionData> registeredRegions = new ConcurrentHashMap<>();
+    private final SpatialRegionIndex spatialRegionIndex = new SpatialRegionIndex();
     private final Map<String, String> pendingDeletions = new ConcurrentHashMap<>();
     private final Map<String, String> pendingRegenerations = new ConcurrentHashMap<>();
     public final Console console = new SpigotConsole();
@@ -273,6 +276,7 @@ public class ArenaRegen extends JavaPlugin {
                     logger.info("Successfully loaded " + totalLoaded + " out of " + files.length + " arenas.");
 
                     unlockAllArenas();
+                    spatialRegionIndex.reindexAll(registeredRegions.values());
 
                     if (totalLoaded < files.length) {
                         logger.info(ARChatColor.RED + "Errors occurred while loading the following arenas:");
@@ -422,6 +426,10 @@ public class ArenaRegen extends JavaPlugin {
 
     public Map<String, RegionData> getRegisteredRegions() {
         return registeredRegions;
+    }
+
+    public SpatialRegionIndex getSpatialRegionIndex() {
+        return spatialRegionIndex;
     }
 
     public Map<String, String> getPendingDeletions() {
@@ -872,9 +880,65 @@ public class ArenaRegen extends JavaPlugin {
         proceedWithRegeneration(arenaName, sender, regionData, world);
     }
 
+    private boolean handlePlayersAndEntitiesBeforeRegen(World world, RegionData regionData, String arenaName, CommandSender sender) {
+        boolean wasLocked = regionData.isLocked();
+        if (lockDuringRegeneration && !wasLocked) {
+            regionData.setLocked(true);
+        }
+
+        List<Player> playersInside = new ArrayList<>();
+        for (Player p : world.getPlayers()) {
+            Location loc = p.getLocation();
+            if (regionData.containsLocation(world, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())) {
+                playersInside.add(p);
+            }
+        }
+
+        if (!playersInside.isEmpty()) {
+            if (cancelRegen) {
+                synchronized (regeneratingArenas) {
+                    regeneratingArenas.remove(arenaName);
+                }
+                if (sender != null) {
+                    sender.sendMessage(prefix + ChatColor.RED + " Regeneration canceled due to players inside the arena.");
+                }
+                return false;
+            }
+
+            for (Player p : playersInside) {
+                if (killPlayers) {
+                    p.setHealth(0.0);
+                }
+                if (teleport) {
+                    Location targetLocation = parseTeleportLocation(p, teleportLocation, regionData, arenaName);
+                    if (targetLocation != null) {
+                        p.teleport(targetLocation);
+                    }
+                }
+                if (executeCommands && commands != null && !commands.isEmpty()) {
+                    for (String cmd : commands) {
+                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd.replace("%player%", p.getName()));
+                    }
+                }
+            }
+        }
+
+        if (trackEntities) {
+            world.getEntities().stream()
+                    .filter(e -> !(e instanceof Player) && regionData.containsLocation(world, e.getLocation().getBlockX(), e.getLocation().getBlockY(), e.getLocation().getBlockZ()))
+                    .forEach(Entity::remove);
+        }
+
+        return true;
+    }
+
     private void proceedWithRegeneration(String arenaName, CommandSender sender, RegionData regionData, World world) {
         DeltaLedger deltaLedger = regionData.getDeltaLedger();
         if (!deltaLedger.isEmpty()) {
+            if (!handlePlayersAndEntitiesBeforeRegen(world, regionData, arenaName, sender)) {
+                return;
+            }
+
             long startTime = System.currentTimeMillis();
             List<BlockUpdate> updates = deltaLedger.getDeltaUpdates();
             int totalBlocksReset = updates.size();

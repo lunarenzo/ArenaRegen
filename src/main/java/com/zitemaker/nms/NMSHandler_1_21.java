@@ -48,11 +48,24 @@ public class NMSHandler_1_21 implements NMSHandler {
                 final int y = update.getY();
                 final int z = update.getZ();
 
+                if (y < world.getMinHeight() || y >= world.getMaxHeight()) {
+                    continue;
+                }
+
                 final long chunkKey = ChunkPos.asLong(x >> 4, z >> 4);
                 final LevelChunk chunk = chunkCache.computeIfAbsent(chunkKey,
                         key -> craftWorld.getHandle().getChunk(x >> 4, z >> 4));
 
-                final LevelChunkSection section = chunk.getSection(chunk.getSectionIndex(y));
+                final int sectionIndex = chunk.getSectionIndex(y);
+                if (sectionIndex < 0 || sectionIndex >= chunk.getSections().length) {
+                    continue;
+                }
+
+                final LevelChunkSection section = chunk.getSection(sectionIndex);
+                if (section == null) {
+                    world.getBlockAt(x, y, z).setBlockData(update.getBlockData(), false);
+                    continue;
+                }
 
                 section.setBlockState(x & 15, y & 15, z & 15,
                         ((CraftBlockData) update.getBlockData()).getState());
