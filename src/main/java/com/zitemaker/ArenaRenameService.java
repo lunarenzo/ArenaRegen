@@ -45,6 +45,13 @@ public final class ArenaRenameService {
         }
 
         Files.move(request.oldFile(), request.newFile());
+
+        Path oldDelta = request.oldFile().getParent().resolve(request.oldFile().getFileName().toString().replace(".datc", ".delta"));
+        Path newDelta = request.newFile().getParent().resolve(request.newFile().getFileName().toString().replace(".datc", ".delta"));
+        if (Files.exists(oldDelta)) {
+            Files.move(oldDelta, newDelta);
+        }
+
         request.arenas().remove(request.oldName());
         request.arenas().put(request.newName(), arena);
         request.updateStoredFile().accept(request.newFile());

@@ -382,6 +382,20 @@ public class RegionData {
         plugin.getPendingDeletions().remove(regionName);
         plugin.getRegisteredRegions().remove(regionName);
         plugin.regeneratingArenas.remove(regionName);
+
+        if (datcFile != null) {
+            if (datcFile.exists()) {
+                datcFile.delete();
+            }
+            File deltaFile = new File(datcFile.getParent(), datcFile.getName().replace(".datc", ".delta"));
+            if (deltaFile.exists()) {
+                deltaFile.delete();
+            }
+            File backupFile = new File(datcFile.getParent(), datcFile.getName() + ".bak");
+            if (backupFile.exists()) {
+                backupFile.delete();
+            }
+        }
     }
 
     private int calculateBufferSize() {

@@ -45,7 +45,7 @@ public class ArenaRegenExpansion extends PlaceholderExpansion {
     }
 
     private void startPlayerCountUpdateTask() {
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+        Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (forceRefresh) {
                 playerCounts.clear();
                 worldCache.clear();
@@ -57,34 +57,19 @@ public class ArenaRegenExpansion extends PlaceholderExpansion {
                 String arenaName = entry.getKey();
                 RegionData region = entry.getValue();
                 World world = Bukkit.getWorld(region.getWorldName());
-                if (world != null) {
-                    worldCache.put(arenaName, world);
-                }
-            }
-
-            for (Map.Entry<String, RegionData> entry : regions.entrySet()) {
-                String arenaName = entry.getKey();
-                RegionData region = entry.getValue();
-                World world = worldCache.get(arenaName);
                 if (world == null) {
                     playerCounts.put(arenaName, 0);
                     continue;
                 }
 
-                int minX = region.getMinX(), minY = region.getMinY(), minZ = region.getMinZ();
-                int maxX = region.getMaxX(), maxY = region.getMaxY(), maxZ = region.getMaxZ();
-
-                long count = world.getPlayers().parallelStream()
-                        .filter(p -> {
-                            Location loc = p.getLocation();
-                            double x = loc.getX(), y = loc.getY(), z = loc.getZ();
-                            return x >= minX && x <= maxX &&
-                                    y >= minY && y <= maxY &&
-                                    z >= minZ && z <= maxZ;
-                        })
-                        .count();
-
-                playerCounts.put(arenaName, (int) count);
+                int count = 0;
+                for (Player p : world.getPlayers()) {
+                    Location loc = p.getLocation();
+                    if (region.containsLocation(world, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())) {
+                        count++;
+                    }
+                }
+                playerCounts.put(arenaName, count);
             }
         }, 0L, 30L);
     }
