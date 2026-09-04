@@ -80,6 +80,7 @@ public class RegionData {
     private final Map<Location, BlockData> modifiedBlocks = new ConcurrentHashMap<>();
     private final Map<Location, Map<String, Object>> bannerStates = new ConcurrentHashMap<>();
     private final Map<Location, Map<String, Object>> signStates = new ConcurrentHashMap<>();
+    private final DeltaLedger deltaLedger = new DeltaLedger();
 
     private String creator;
     private long creationDate;
@@ -1273,5 +1274,18 @@ public class RegionData {
     
     public void setBlockDataLoaded(boolean loaded) {
         this.isBlockDataLoaded = loaded;
+    }
+
+    public DeltaLedger getDeltaLedger() {
+        return deltaLedger;
+    }
+
+    public boolean containsLocation(World world, int x, int y, int z) {
+        if (worldName == null || world == null || !worldName.equals(world.getName())) {
+            return false;
+        }
+        return x >= minX && x <= getMaxX()
+            && y >= minY && y <= getMaxY()
+            && z >= minZ && z <= getMaxZ();
     }
 }

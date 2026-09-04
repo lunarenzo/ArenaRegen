@@ -3,6 +3,8 @@ package com.zitemaker;
 import com.zitemaker.commands.ArenaRegenCommand;
 import com.zitemaker.helpers.EntitySerializer;
 import com.zitemaker.helpers.RegionData;
+import com.zitemaker.helpers.DeltaLedger;
+import com.zitemaker.listeners.ArenaDeltaListener;
 import com.zitemaker.listeners.PlayerMoveListener;
 import com.zitemaker.nms.BlockUpdate;
 import com.zitemaker.nms.NMSHandlerFactoryProvider;
@@ -162,6 +164,7 @@ public class ArenaRegen extends JavaPlugin {
             Bukkit.getPluginManager().registerEvents(commandExecutor, this);
             playerMoveListener = new PlayerMoveListener(this);
             Bukkit.getPluginManager().registerEvents(playerMoveListener, this);
+            Bukkit.getPluginManager().registerEvents(new ArenaDeltaListener(this), this);
 
             File arenasDir = new File(getDataFolder(), "arenas");
             if (!arenasDir.exists()) {
@@ -870,6 +873,51 @@ public class ArenaRegen extends JavaPlugin {
     }
 
     private void proceedWithRegeneration(String arenaName, CommandSender sender, RegionData regionData, World world) {
+        DeltaLedger deltaLedger = regionData.getDeltaLedger();
+        if (!deltaLedger.isEmpty()) {
+            long startTime = System.currentTimeMillis();
+            List<BlockUpdate> updates = deltaLedger.getDeltaUpdates();
+            int totalBlocksReset = updates.size();
+
+            try {
+                NMSHandlerFactoryProvider.getNMSHandler().setBlocks(world, updates);
+
+                Set<Chunk> affectedChunks = new HashSet<>();
+                for (BlockUpdate update : updates) {
+                    int chunkX = update.getX() >> 4;
+                    int chunkZ = update.getZ() >> 4;
+                    try {
+                        Chunk chunk = world.getChunkAt(chunkX, chunkZ);
+                        if (chunk.isLoaded()) {
+                            affectedChunks.add(chunk);
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+
+                if (!affectedChunks.isEmpty()) {
+                    NMSHandlerFactoryProvider.getNMSHandler().relightChunks(world, new ArrayList<>(affectedChunks), updates);
+                }
+
+                deltaLedger.clear();
+                long timeTaken = System.currentTimeMillis() - startTime;
+                if (sender != null) {
+                    sender.sendMessage(prefix + ChatColor.GREEN + " Delta Regeneration of '" + arenaName + "' complete! "
+                            + ChatColor.GRAY + " (" + totalBlocksReset + " blocks reset in " + (timeTaken / 1000.0) + "s)");
+                }
+            } catch (Exception e) {
+                logger.info("[ArenaRegen] Delta regeneration error: " + e.getMessage());
+            } finally {
+                synchronized (regeneratingArenas) {
+                    regeneratingArenas.remove(arenaName);
+                }
+                if (regionData.isLocked()) {
+                    regionData.setLocked(false);
+                }
+            }
+            return;
+        }
+
         try {
             regionData.getSectionedBlockData().thenApplyAsync(sectionedBlockData -> {
 
