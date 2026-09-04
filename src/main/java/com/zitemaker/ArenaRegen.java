@@ -212,6 +212,14 @@ public class ArenaRegen extends JavaPlugin {
         for (Integer taskId : scheduledTasks.values()) {
             Bukkit.getScheduler().cancelTask(taskId);
         }
+        for (RegionData region : registeredRegions.values()) {
+            File datcFile = region.getDatcFile();
+            if (datcFile != null) {
+                File deltaFile = new File(datcFile.getParent(), datcFile.getName().replace(".datc", ".delta"));
+                region.getDeltaLedger().saveToFile(deltaFile);
+            }
+        }
+
         scheduledTasks.clear();
         saveSchedules();
         regeneratingArenas.clear();
