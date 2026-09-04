@@ -2,6 +2,7 @@ package com.zitemaker.listeners;
 
 import com.zitemaker.ArenaRegen;
 import com.zitemaker.helpers.RegionData;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -95,6 +96,9 @@ public final class ArenaDeltaListener implements Listener {
     public void onEntityExplode(EntityExplodeEvent event) {
         List<Block> blocks = event.blockList();
         for (Block block : blocks) {
+            if (block.getType() == Material.TNT) {
+                continue;
+            }
             recordBlockIfInsideRegion(block, block.getBlockData());
         }
     }
@@ -103,6 +107,9 @@ public final class ArenaDeltaListener implements Listener {
     public void onBlockExplode(BlockExplodeEvent event) {
         List<Block> blocks = event.blockList();
         for (Block block : blocks) {
+            if (block.getType() == Material.TNT) {
+                continue;
+            }
             recordBlockIfInsideRegion(block, block.getBlockData());
         }
     }
