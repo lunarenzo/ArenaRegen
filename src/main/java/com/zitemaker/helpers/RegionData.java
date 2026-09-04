@@ -477,16 +477,6 @@ public class RegionData {
         });
 
         return future;
-                        modifiedCount + " modified blocks. " +
-                    "File size: " + (fileSize / 1024) + " KB, Time: " + timeTaken + "ms");
-
-            future.complete(null);
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-
-        return future;
     }
 
     private void writeSections(DataOutputStream dos, Map<String, Map<Location, BlockData>> sectionedBlockDataCopy) throws IOException {
