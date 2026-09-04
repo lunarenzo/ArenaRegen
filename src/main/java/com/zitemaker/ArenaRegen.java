@@ -379,12 +379,14 @@ public class ArenaRegen extends JavaPlugin {
                     if (totalSaved < regionsToProcess.size()) {
                         console.sendMessage(ARChatColor.RED + "Errors occurred while saving the following regions:");
                         console.sendMessage(errorSummary.toString());
-                        for (Player player : Bukkit.getOnlinePlayers()) {
-                            if (player.isOp()) {
-                                player.sendMessage(prefix + " " + ARChatColor.RED
-                                        + "Failed to save some arenas! Check the server logs for details.");
+                        Bukkit.getScheduler().runTask(this, () -> {
+                            for (Player player : Bukkit.getOnlinePlayers()) {
+                                if (player.isOp()) {
+                                    player.sendMessage(prefix + " " + ARChatColor.RED
+                                            + "Failed to save some arenas! Check the server logs for details.");
+                                }
                             }
-                        }
+                        });
                     } else {
                         synchronized (dirtyRegions) {
                             dirtyRegions.removeAll(regionsToProcess);

@@ -422,7 +422,6 @@ public class RegionData {
         long startTime = System.currentTimeMillis();
 
         File deltaFile = new File(datcFile.getParent(), datcFile.getName().replace(".datc", ".delta"));
-        deltaLedger.saveToFile(deltaFile);
 
         Map<String, Map<Location, BlockData>> sectionedBlockDataCopy = new ConcurrentHashMap<>(sectionedBlockData);
         Map<Location, Map<String, Object>> entityDataMapCopy = new ConcurrentHashMap<>(entityDataMap);
@@ -440,6 +439,8 @@ public class RegionData {
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
+                deltaLedger.saveToFile(deltaFile);
+
                 File backupFile = new File(datcFile.getParent(), datcFile.getName() + ".bak");
                 if (datcFile.exists()) {
                     if (!datcFile.renameTo(backupFile)) {
