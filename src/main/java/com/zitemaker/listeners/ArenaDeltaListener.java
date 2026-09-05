@@ -5,8 +5,10 @@ import com.zitemaker.helpers.RegionData;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.Chest;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -40,6 +42,7 @@ import java.util.Set;
  */
 public final class ArenaDeltaListener implements Listener {
 
+    private static final BlockFace[] HORIZONTAL_FACES = {BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST};
     private final ArenaRegen plugin;
 
     public ArenaDeltaListener(ArenaRegen plugin) {
@@ -64,6 +67,24 @@ public final class ArenaDeltaListener implements Listener {
         for (RegionData region : regions) {
             if (region.containsLocation(world, x, y, z)) {
                 region.getDeltaLedger().recordOriginalState(x, y, z, pristineData);
+
+                BlockData currentData = block.getBlockData();
+                BlockData chestData = (pristineData instanceof Chest) ? pristineData : (currentData instanceof Chest ? currentData : null);
+
+                if (chestData instanceof Chest chest && chest.getType() != Chest.Type.SINGLE) {
+                    for (BlockFace face : HORIZONTAL_FACES) {
+                        Block neighbor = block.getRelative(face);
+                        BlockData neighborData = neighbor.getBlockData();
+                        if (neighborData instanceof Chest neighborChest && neighborChest.getType() != Chest.Type.SINGLE && neighborChest.getFacing() == chest.getFacing()) {
+                            int nx = neighbor.getX();
+                            int ny = neighbor.getY();
+                            int nz = neighbor.getZ();
+                            if (region.containsLocation(world, nx, ny, nz)) {
+                                region.getDeltaLedger().recordOriginalState(nx, ny, nz, neighborData);
+                            }
+                        }
+                    }
+                }
             }
         }
     }
