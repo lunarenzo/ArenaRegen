@@ -18,6 +18,9 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.NamespacedKey;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -288,6 +291,12 @@ public class RegionData {
         }
         }
         sectionedBlockData.put(sectionName, sectionBlocks);
+        synchronized (pristineBlockMap) {
+            for (Map.Entry<Location, BlockData> entry : sectionBlocks.entrySet()) {
+                Location loc = entry.getKey();
+                pristineBlockMap.put(BlockPos.pack(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()), entry.getValue());
+            }
+        }
     }
 
     private String resolvePatternIdentifier(Pattern pattern) {
@@ -1017,30 +1026,41 @@ public class RegionData {
     private void readSections(DataInputStream dis, World world) throws IOException {
         int sectionCount = dis.readInt();
         sectionedBlockData.clear();
+        synchronized (pristineBlockMap) {
+            pristineBlockMap.clear();
+            for (int i = 0; i < sectionCount; i++) {
+                String sectionName = dis.readUTF();
+                int blockCount = dis.readInt();
+                Map<Location, BlockData> blocks = new ConcurrentHashMap<>();
 
-        for (int i = 0; i < sectionCount; i++) {
-            String sectionName = dis.readUTF();
-            int blockCount = dis.readInt();
-            Map<Location, BlockData> blocks = new ConcurrentHashMap<>();
+                for (int j = 0; j < blockCount; j++) {
+                    int x = dis.readInt();
+                    int y = dis.readInt();
+                    int z = dis.readInt();
+                    String blockDataStr = dis.readUTF();
 
-            for (int j = 0; j < blockCount; j++) {
-                int x = dis.readInt();
-                int y = dis.readInt();
-                int z = dis.readInt();
-                String blockDataStr = dis.readUTF();
-
-                Location loc = new Location(world, x, y, z);
-                try {
-                    
-                    BlockData blockData = getCachedBlockData(blockDataStr);
-                    blocks.put(loc, blockData);
-                } catch (IllegalArgumentException e) {
-                    LOGGER.warning("[ArenaRegen] Invalid block data '" + blockDataStr + "' at " + loc + " in section " + sectionName + ": " + e.getMessage() + ", replacing with air.");
-                    blocks.put(loc, getCachedBlockData("minecraft:air"));
+                    Location loc = new Location(world, x, y, z);
+                    try {
+                        BlockData blockData = getCachedBlockData(blockDataStr);
+                        blocks.put(loc, blockData);
+                        pristineBlockMap.put(BlockPos.pack(x, y, z), blockData);
+                    } catch (IllegalArgumentException e) {
+                        LOGGER.warning("[ArenaRegen] Invalid block data '" + blockDataStr + "' at " + loc + " in section " + sectionName + ": " + e.getMessage() + ", replacing with air.");
+                        BlockData air = getCachedBlockData("minecraft:air");
+                        blocks.put(loc, air);
+                        pristineBlockMap.put(BlockPos.pack(x, y, z), air);
+                    }
                 }
+                sectionedBlockData.put(sectionName, blocks);
             }
-            sectionedBlockData.put(sectionName, blocks);
         }
+    }
+
+    public synchronized BlockData getPristineBlockData(int x, int y, int z) {
+        if (pristineBlockMap.isEmpty()) {
+            return null;
+        }
+        return pristineBlockMap.get(BlockPos.pack(x, y, z));
     }
 
     private void readEntities(DataInputStream dis, World world) throws IOException {
@@ -1372,6 +1392,9 @@ public class RegionData {
 
     public void clearBlockData() {
         sectionedBlockData.clear();
+        synchronized (pristineBlockMap) {
+            pristineBlockMap.clear();
+        }
         entityDataMap.clear();
         bannerStates.clear();
         signStates.clear();

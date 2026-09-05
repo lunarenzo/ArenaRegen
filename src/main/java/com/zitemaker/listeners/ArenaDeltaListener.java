@@ -66,22 +66,27 @@ public final class ArenaDeltaListener implements Listener {
 
         for (RegionData region : regions) {
             if (region.containsLocation(world, x, y, z)) {
-                region.getDeltaLedger().recordOriginalState(x, y, z, pristineData);
+                BlockData actualPristine = region.getPristineBlockData(x, y, z);
+                if (actualPristine == null) {
+                    actualPristine = pristineData;
+                }
+                region.getDeltaLedger().recordOriginalState(x, y, z, actualPristine);
 
                 BlockData currentData = block.getBlockData();
-                BlockData chestData = (pristineData instanceof Chest) ? pristineData : (currentData instanceof Chest ? currentData : null);
+                BlockData chestData = (actualPristine instanceof Chest) ? actualPristine : (currentData instanceof Chest ? currentData : null);
 
                 if (chestData instanceof Chest chest && chest.getType() != Chest.Type.SINGLE) {
                     for (BlockFace face : HORIZONTAL_FACES) {
                         Block neighbor = block.getRelative(face);
-                        BlockData neighborData = neighbor.getBlockData();
-                        if (neighborData instanceof Chest neighborChest && neighborChest.getType() != Chest.Type.SINGLE && neighborChest.getFacing() == chest.getFacing()) {
-                            int nx = neighbor.getX();
-                            int ny = neighbor.getY();
-                            int nz = neighbor.getZ();
-                            if (region.containsLocation(world, nx, ny, nz)) {
-                                region.getDeltaLedger().recordOriginalState(nx, ny, nz, neighborData);
+                        int nx = neighbor.getX();
+                        int ny = neighbor.getY();
+                        int nz = neighbor.getZ();
+                        if (region.containsLocation(world, nx, ny, nz)) {
+                            BlockData neighborPristine = region.getPristineBlockData(nx, ny, nz);
+                            if (neighborPristine == null) {
+                                neighborPristine = neighbor.getBlockData();
                             }
+                            region.getDeltaLedger().recordOriginalState(nx, ny, nz, neighborPristine);
                         }
                     }
                 }
@@ -117,9 +122,6 @@ public final class ArenaDeltaListener implements Listener {
     public void onEntityExplode(EntityExplodeEvent event) {
         List<Block> blocks = event.blockList();
         for (Block block : blocks) {
-            if (block.getType() == Material.TNT) {
-                continue;
-            }
             recordBlockIfInsideRegion(block, block.getBlockData());
         }
     }
@@ -128,9 +130,6 @@ public final class ArenaDeltaListener implements Listener {
     public void onBlockExplode(BlockExplodeEvent event) {
         List<Block> blocks = event.blockList();
         for (Block block : blocks) {
-            if (block.getType() == Material.TNT) {
-                continue;
-            }
             recordBlockIfInsideRegion(block, block.getBlockData());
         }
     }
