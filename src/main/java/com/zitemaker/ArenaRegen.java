@@ -293,11 +293,13 @@ public class ArenaRegen extends JavaPlugin implements Listener {
             regionData.setDatcFile(file);
 
             CompletableFuture<Void> loadFuture = regionData.loadFromDatc(file)
-                    .thenCompose(v -> regionData.ensureBlockDataLoaded())
                     .thenRun(() -> {
                         registeredRegions.put(regionName, regionData);
+                        if (Bukkit.getWorld(regionData.getWorldName()) != null) {
+                            spatialRegionIndex.registerRegion(regionData);
+                        }
                         loadedRegions.incrementAndGet();
-                        logger.info(ARChatColor.GREEN + "Loaded arena '" + regionName + "' successfully.");
+                        logger.info(ARChatColor.GREEN + "Loaded arena '" + regionName + "' metadata successfully.");
                     })
                     .exceptionally(e -> {
                         logger.info(ARChatColor.RED + "Failed to load arena '" + regionName + "' from " + file.getName()

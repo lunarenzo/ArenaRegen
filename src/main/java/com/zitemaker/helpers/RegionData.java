@@ -989,17 +989,11 @@ public class RegionData {
                     File deltaFile = new File(datcFile.getParent(), datcFile.getName().replace(".datc", ".delta"));
                     deltaLedger.loadFromFile(deltaFile);
 
-                    readSections(dis, world);
-                    readEntities(dis, world);
-                    readBanners(dis, world, fileVersion);
-                    readSigns(dis, world, fileVersion);
-                    readContainers(dis, world, fileVersion);
-                    readModifiedBlocks(dis, world);
-                    isBlockDataLoaded = true;
+                    isBlockDataLoaded = false;
 
                     long timeTaken = System.currentTimeMillis() - startTime;
                     long fileSize = datcFile.length();
-                    LOGGER.info("[ArenaRegen] Loaded metadata, sections & delta for " + datcFile.getName() + " (" + (fileSize / 1024) + " KB, " + timeTaken + "ms). Delta size: " + deltaLedger.size() + " blocks.");
+                    LOGGER.info("[ArenaRegen] Loaded metadata for " + datcFile.getName() + " (" + (fileSize / 1024) + " KB, " + timeTaken + "ms). Delta size: " + deltaLedger.size() + " blocks.");
 
                     future.complete(null);
                 }
