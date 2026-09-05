@@ -4,6 +4,7 @@ import com.zitemaker.ArenaRegen;
 import org.bukkit.*;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
+import org.bukkit.block.ChiseledBookshelf;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.Banner;
 import org.bukkit.block.Sign;
@@ -171,8 +172,28 @@ public class RegionData {
                     signData.put("persistentData", pdcData);
                 }
                 signStates.put(location.clone(), signData);
+            } else if (state instanceof Chest chest) {
+                Inventory inv = chest.getBlockInventory();
+                ItemStack[] contents = inv.getContents();
+                if (contents != null) {
+                    ItemStack[] copy = new ItemStack[contents.length];
+                    for (int i = 0; i < contents.length; i++) {
+                        copy[i] = contents[i] != null ? contents[i].clone() : null;
+                    }
+                    containerStates.put(location.clone(), copy);
+                }
             } else if (state instanceof BlockInventoryHolder holder) {
-                Inventory inv = (state instanceof Chest chest) ? chest.getBlockInventory() : holder.getInventory();
+                Inventory inv = holder.getInventory();
+                ItemStack[] contents = inv.getContents();
+                if (contents != null) {
+                    ItemStack[] copy = new ItemStack[contents.length];
+                    for (int i = 0; i < contents.length; i++) {
+                        copy[i] = contents[i] != null ? contents[i].clone() : null;
+                    }
+                    containerStates.put(location.clone(), copy);
+                }
+            } else if (state instanceof ChiseledBookshelf shelf) {
+                Inventory inv = shelf.getInventory();
                 ItemStack[] contents = inv.getContents();
                 if (contents != null) {
                     ItemStack[] copy = new ItemStack[contents.length];
@@ -409,8 +430,16 @@ public class RegionData {
             Location loc = entry.getKey();
             try {
                 BlockState state = world.getBlockAt(loc).getState();
-                if (state instanceof BlockInventoryHolder holder) {
-                    Inventory inv = (state instanceof Chest chest) ? chest.getBlockInventory() : holder.getInventory();
+                Inventory inv = null;
+                if (state instanceof Chest chest) {
+                    inv = chest.getBlockInventory();
+                } else if (state instanceof BlockInventoryHolder holder) {
+                    inv = holder.getInventory();
+                } else if (state instanceof ChiseledBookshelf shelf) {
+                    inv = shelf.getInventory();
+                }
+
+                if (inv != null) {
                     ItemStack[] saved = entry.getValue();
                     inv.clear();
                     if (saved != null) {
@@ -421,7 +450,6 @@ public class RegionData {
                             }
                         }
                     }
-                    state.update(true, true);
                 }
             } catch (Exception e) {
                 LOGGER.warning("[ArenaRegen] Failed to restore container at " + loc + ": " + e.getMessage());
