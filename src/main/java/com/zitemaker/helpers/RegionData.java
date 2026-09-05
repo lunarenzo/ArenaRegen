@@ -3,6 +3,7 @@ package com.zitemaker.helpers;
 import com.zitemaker.ArenaRegen;
 import org.bukkit.*;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.Chest;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.Banner;
 import org.bukkit.block.Sign;
@@ -171,7 +172,7 @@ public class RegionData {
                 }
                 signStates.put(location.clone(), signData);
             } else if (state instanceof BlockInventoryHolder holder) {
-                Inventory inv = holder.getInventory();
+                Inventory inv = (state instanceof Chest chest) ? chest.getBlockInventory() : holder.getInventory();
                 ItemStack[] contents = inv.getContents();
                 if (contents != null) {
                     ItemStack[] copy = new ItemStack[contents.length];
@@ -409,7 +410,7 @@ public class RegionData {
             try {
                 BlockState state = world.getBlockAt(loc).getState();
                 if (state instanceof BlockInventoryHolder holder) {
-                    Inventory inv = holder.getInventory();
+                    Inventory inv = (state instanceof Chest chest) ? chest.getBlockInventory() : holder.getInventory();
                     ItemStack[] saved = entry.getValue();
                     inv.clear();
                     if (saved != null) {
@@ -420,6 +421,7 @@ public class RegionData {
                             }
                         }
                     }
+                    state.update(true, true);
                 }
             } catch (Exception e) {
                 LOGGER.warning("[ArenaRegen] Failed to restore container at " + loc + ": " + e.getMessage());
