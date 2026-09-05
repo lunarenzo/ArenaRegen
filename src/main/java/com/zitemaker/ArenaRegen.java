@@ -37,6 +37,9 @@ import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.TNTPrimed;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -55,7 +58,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
-public class ArenaRegen extends JavaPlugin {
+public class ArenaRegen extends JavaPlugin implements Listener {
 
     private File messagesFile;
     private FileConfiguration messagesConfig;
@@ -181,6 +184,7 @@ public class ArenaRegen extends JavaPlugin {
         playerMoveListener = new PlayerMoveListener(this);
         Bukkit.getPluginManager().registerEvents(playerMoveListener, this);
         Bukkit.getPluginManager().registerEvents(new ArenaDeltaListener(this), this);
+        Bukkit.getPluginManager().registerEvents(this, this);
 
         loadRegionsAsync().thenRun(() -> {
             loadSchedules();
@@ -243,6 +247,20 @@ public class ArenaRegen extends JavaPlugin {
         RegionData.clearBlockDataCache();
 
         logger.info(ARChatColor.RED + "ArenaRegen v" + getDescription().getVersion() + " has been disabled.");
+    }
+
+    @EventHandler
+    public void onWorldLoad(WorldLoadEvent event) {
+        World world = event.getWorld();
+        String loadedWorldName = world.getName();
+        for (RegionData regionData : registeredRegions.values()) {
+            if (regionData.getWorldName().equalsIgnoreCase(loadedWorldName)) {
+                regionData.ensureBlockDataLoaded().thenRun(() -> {
+                    spatialRegionIndex.registerRegion(regionData);
+                    logger.info(ARChatColor.GREEN + "[ArenaRegen] World '" + loadedWorldName + "' loaded. Initialized arena '" + regionData.getDatcFile().getName() + "'.");
+                });
+            }
+        }
     }
 
     private CompletableFuture<Void> loadRegionsAsync() {
