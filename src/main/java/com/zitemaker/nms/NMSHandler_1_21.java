@@ -2,7 +2,11 @@ package com.zitemaker.nms;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.lighting.LevelLightEngine;
@@ -73,8 +77,21 @@ public class NMSHandler_1_21 implements NMSHandler {
                     continue;
                 }
 
-                section.setBlockState(x & 15, y & 15, z & 15,
-                        ((CraftBlockData) update.getBlockData()).getState());
+                BlockState newState = ((CraftBlockData) update.getBlockData()).getState();
+                BlockPos pos = new BlockPos(x, y, z);
+
+                if (chunk.getBlockEntity(pos) != null) {
+                    chunk.removeBlockEntity(pos);
+                }
+
+                section.setBlockState(x & 15, y & 15, z & 15, newState);
+
+                if (newState.hasBlockEntity()) {
+                    BlockEntity blockEntity = ((EntityBlock) newState.getBlock()).newBlockEntity(pos, newState);
+                    if (blockEntity != null) {
+                        chunk.setBlockEntity(blockEntity);
+                    }
+                }
             }
 
             for (LevelChunk chunk : chunkCache.values()) {
