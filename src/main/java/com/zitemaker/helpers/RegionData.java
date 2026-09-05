@@ -974,11 +974,17 @@ public class RegionData {
                     File deltaFile = new File(datcFile.getParent(), datcFile.getName().replace(".datc", ".delta"));
                     deltaLedger.loadFromFile(deltaFile);
 
-                    isBlockDataLoaded = false;
+                    readSections(dis, world);
+                    readEntities(dis, world);
+                    readBanners(dis, world, fileVersion);
+                    readSigns(dis, world, fileVersion);
+                    readContainers(dis, world, fileVersion);
+                    readModifiedBlocks(dis, world);
+                    isBlockDataLoaded = true;
 
                     long timeTaken = System.currentTimeMillis() - startTime;
                     long fileSize = datcFile.length();
-                    LOGGER.info("[ArenaRegen] Loaded metadata & delta for " + datcFile.getName() + " (" + (fileSize / 1024) + " KB, " + timeTaken + "ms). Delta size: " + deltaLedger.size() + " blocks.");
+                    LOGGER.info("[ArenaRegen] Loaded metadata, sections & delta for " + datcFile.getName() + " (" + (fileSize / 1024) + " KB, " + timeTaken + "ms). Delta size: " + deltaLedger.size() + " blocks.");
 
                     future.complete(null);
                 }
@@ -1058,12 +1064,6 @@ public class RegionData {
     }
 
     public synchronized BlockData getPristineBlockData(int x, int y, int z) {
-        if (!isBlockDataLoaded && pristineBlockMap.isEmpty()) {
-            try {
-                ensureBlockDataLoaded().join();
-            } catch (Exception ignored) {
-            }
-        }
         if (pristineBlockMap.isEmpty()) {
             return null;
         }
