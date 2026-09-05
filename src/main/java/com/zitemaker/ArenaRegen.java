@@ -16,6 +16,10 @@ import com.zitemaker.placeholders.ArenaRegenExpansion;
 import com.zitemaker.utils.*;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.*;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.block.data.CraftBlockData;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import org.bukkit.block.Banner;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -964,22 +968,6 @@ public class ArenaRegen extends JavaPlugin {
         } catch (Exception ignored) {
         }
         DeltaLedger deltaLedger = regionData.getDeltaLedger();
-        if (deltaLedger.isEmpty() && regenOnlyModified) {
-            synchronized (regeneratingArenas) {
-                regeneratingArenas.remove(arenaName);
-            }
-            synchronized (dirtyRegions) {
-                dirtyRegions.remove(arenaName);
-            }
-            if (regionData.isLocked()) {
-                regionData.setLocked(false);
-            }
-            if (sender != null) {
-                sender.sendMessage(prefix + ChatColor.GREEN + " Region '" + arenaName + "' is already pristine (0 blocks modified).");
-            }
-            return;
-        }
-
         if (!deltaLedger.isEmpty()) {
             if (!handlePlayersAndEntitiesBeforeRegen(world, regionData, arenaName, sender)) {
                 return;
@@ -1432,12 +1420,25 @@ public class ArenaRegen extends JavaPlugin {
                             int z = BlockPos.unpackZ(key);
                             BlockData originalData = entry.getValue();
 
-                            boolean shouldUpdate;
+                            boolean shouldUpdate = true;
                             if (regenOnlyModified) {
-                                Block block = world.getBlockAt(x, y, z);
-                                BlockData currentData = block.getBlockData();
-                                shouldUpdate = !currentData.equals(originalData);
-                                if (shouldUpdate) {
+                                int cx = x >> 4;
+                                int cz = z >> 4;
+                                long cKey = (((long) cx) << 32) | (cz & 0xFFFFFFFFL);
+                                Chunk chunk = chunkCache.computeIfAbsent(cKey, k -> world.getChunkAt(cx, cz));
+                                if (chunk != null) {
+                                    CraftWorld craftWorld = (CraftWorld) world;
+                                    LevelChunk nmsChunk = craftWorld.getHandle().getChunk(cx, cz);
+                                    int secIndex = nmsChunk.getSectionIndex(y);
+                                    if (secIndex >= 0 && secIndex < nmsChunk.getSections().length) {
+                                        LevelChunkSection section = nmsChunk.getSection(secIndex);
+                                        if (section != null) {
+                                            shouldUpdate = (section.getBlockState(x & 15, y & 15, z & 15) != ((CraftBlockData) originalData).getState());
+                                        }
+                                    }
+                                }
+                            }
+                            if (shouldUpdate) {
                                     updates.add(new BlockUpdate(x, y, z, originalData));
 
                                     int chunkX = x >> 4;
