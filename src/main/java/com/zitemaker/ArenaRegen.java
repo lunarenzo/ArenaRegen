@@ -173,15 +173,17 @@ public class ArenaRegen extends JavaPlugin {
         reloadPluginConfig();
         loadMessagesFile();
         saveMessagesFile();
+
+        ArenaRegenCommand commandExecutor = new ArenaRegenCommand(this);
+        Objects.requireNonNull(getCommand("arenaregen")).setExecutor(commandExecutor);
+        Objects.requireNonNull(getCommand("arenaregen")).setTabCompleter(commandExecutor);
+        Bukkit.getPluginManager().registerEvents(commandExecutor, this);
+        playerMoveListener = new PlayerMoveListener(this);
+        Bukkit.getPluginManager().registerEvents(playerMoveListener, this);
+        Bukkit.getPluginManager().registerEvents(new ArenaDeltaListener(this), this);
+
         loadRegionsAsync().thenRun(() -> {
             loadSchedules();
-            ArenaRegenCommand commandExecutor = new ArenaRegenCommand(this);
-            Objects.requireNonNull(getCommand("arenaregen")).setExecutor(commandExecutor);
-            Objects.requireNonNull(getCommand("arenaregen")).setTabCompleter(commandExecutor);
-            Bukkit.getPluginManager().registerEvents(commandExecutor, this);
-            playerMoveListener = new PlayerMoveListener(this);
-            Bukkit.getPluginManager().registerEvents(playerMoveListener, this);
-            Bukkit.getPluginManager().registerEvents(new ArenaDeltaListener(this), this);
 
             File arenasDir = new File(getDataFolder(), "arenas");
             if (!arenasDir.exists()) {
