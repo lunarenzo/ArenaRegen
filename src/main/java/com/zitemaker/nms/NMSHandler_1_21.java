@@ -77,6 +77,7 @@ public class NMSHandler_1_21 implements NMSHandler {
                     continue;
                 }
 
+                BlockState oldState = section.getBlockState(x & 15, y & 15, z & 15);
                 BlockState newState = ((CraftBlockData) update.getBlockData()).getState();
                 BlockPos pos = new BlockPos(x, y, z);
 
@@ -85,6 +86,10 @@ public class NMSHandler_1_21 implements NMSHandler {
                 }
 
                 section.setBlockState(x & 15, y & 15, z & 15, newState);
+
+                if (oldState.getLightEmission() != newState.getLightEmission() || oldState.isSolid() != newState.isSolid()) {
+                    craftWorld.getHandle().getLightEngine().checkBlock(pos);
+                }
 
                 if (newState.hasBlockEntity()) {
                     BlockEntity blockEntity = ((EntityBlock) newState.getBlock()).newBlockEntity(pos, newState);
@@ -147,17 +152,16 @@ public class NMSHandler_1_21 implements NMSHandler {
                     } catch (Exception e) {
                         LOGGER.warning(
                                 "Failed to relight chunk at " + chunkPos.x + ", " + chunkPos.z + ": " + e.getMessage());
-                        try {
-                            world.refreshChunk(chunkPos.x, chunkPos.z);
-                        } catch (Exception ignored) {
-                        }
                     }
                 }
 
-                /*
-                 try {
-                 processLightUpdates(lightEngine);
-                 } catch (Exception lightProcessException) {
+                try {
+                    int maxWork = 500;
+                    while (lightEngine.hasLightWork() && maxWork-- > 0) {
+                        lightEngine.runLightUpdates();
+                    }
+                } catch (Exception ignored) {
+                }
                  LOGGER.warning("Failed to process lighting updates for batch: " +
                  lightProcessException.getMessage());
                  }

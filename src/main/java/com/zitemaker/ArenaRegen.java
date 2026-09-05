@@ -964,6 +964,22 @@ public class ArenaRegen extends JavaPlugin {
         } catch (Exception ignored) {
         }
         DeltaLedger deltaLedger = regionData.getDeltaLedger();
+        if (deltaLedger.isEmpty() && regenOnlyModified) {
+            synchronized (regeneratingArenas) {
+                regeneratingArenas.remove(arenaName);
+            }
+            synchronized (dirtyRegions) {
+                dirtyRegions.remove(arenaName);
+            }
+            if (regionData.isLocked()) {
+                regionData.setLocked(false);
+            }
+            if (sender != null) {
+                sender.sendMessage(prefix + ChatColor.GREEN + " Region '" + arenaName + "' is already pristine (0 blocks modified).");
+            }
+            return;
+        }
+
         if (!deltaLedger.isEmpty()) {
             if (!handlePlayersAndEntitiesBeforeRegen(world, regionData, arenaName, sender)) {
                 return;
@@ -1376,7 +1392,7 @@ public class ArenaRegen extends JavaPlugin {
                                 }
                                 NMSHandlerFactoryProvider.getNMSHandler().relightChunks(world,
                                         new ArrayList<>(extendedChunks), new ArrayList<>());
-                            }, 40L);
+                            }, 1L);
 
                             long timeTaken = System.currentTimeMillis() - startTime;
                             if (sender != null) {
