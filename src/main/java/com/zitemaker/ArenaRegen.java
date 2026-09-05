@@ -1123,7 +1123,9 @@ public class ArenaRegen extends JavaPlugin {
                             if (teleport) {
                                 Location targetLocation = parseTeleportLocation(players, teleportLocation, regionData,
                                         arenaName);
-                                players.teleport(targetLocation);
+                                if (targetLocation != null) {
+                                    players.teleport(targetLocation);
+                                }
                             }
                             if (executeCommands && !commands.isEmpty()) {
                                 for (String cmd : commands) {
@@ -1672,8 +1674,8 @@ public class ArenaRegen extends JavaPlugin {
                 Location arenaLoc = regionData.getSpawnLocation();
                 if (arenaLoc != null)
                     return arenaLoc;
-                getLogger().warning("No arena spawn was found for " + arenaName);
-                return null;
+                getLogger().warning("No arena spawn was found for " + arenaName + " — falling back to world spawn.");
+                return world.getSpawnLocation();
 
             case "CUSTOM":
                 String worldName = locSection.getString("world", "UNCHANGED");
