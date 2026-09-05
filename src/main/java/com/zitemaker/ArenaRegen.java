@@ -1,10 +1,13 @@
 package com.zitemaker;
 
 import com.zitemaker.commands.ArenaRegenCommand;
+import com.zitemaker.helpers.BlockPos;
 import com.zitemaker.helpers.EntitySerializer;
 import com.zitemaker.helpers.RegionData;
 import com.zitemaker.helpers.DeltaLedger;
 import com.zitemaker.helpers.SpatialRegionIndex;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import com.zitemaker.listeners.ArenaDeltaListener;
 import com.zitemaker.listeners.PlayerMoveListener;
 import com.zitemaker.nms.BlockUpdate;
@@ -1047,10 +1050,10 @@ public class ArenaRegen extends JavaPlugin {
                 }
 
                 List<String> sectionNames = new ArrayList<>(sectionedBlockData.keySet());
-                Map<String, List<Map.Entry<Location, BlockData>>> sectionBlockLists = new HashMap<>();
+                Map<String, List<Long2ObjectMap.Entry<BlockData>>> sectionBlockLists = new HashMap<>();
                 for (String sectionName : sectionNames) {
-                    Map<Location, BlockData> section = sectionedBlockData.get(sectionName);
-                    sectionBlockLists.put(sectionName, new ArrayList<>(section.entrySet()));
+                    Long2ObjectMap<BlockData> section = sectionedBlockData.get(sectionName);
+                    sectionBlockLists.put(sectionName, new ArrayList<>(section.long2ObjectEntrySet()));
                 }
 
                 return new Object[] { sectionNames, sectionBlockLists };
@@ -1071,7 +1074,7 @@ public class ArenaRegen extends JavaPlugin {
                     @SuppressWarnings("unchecked")
                     List<String> sectionNames = (List<String>) preparedData[0];
                     @SuppressWarnings("unchecked")
-                    Map<String, List<Map.Entry<Location, BlockData>>> sectionBlockLists = (Map<String, List<Map.Entry<Location, BlockData>>>) preparedData[1];
+                    Map<String, List<Long2ObjectMap.Entry<BlockData>>> sectionBlockLists = (Map<String, List<Long2ObjectMap.Entry<BlockData>>>) preparedData[1];
 
                     boolean wasLocked = regionData.isLocked();
                     if (lockDuringRegeneration && !wasLocked) {
@@ -1400,36 +1403,36 @@ public class ArenaRegen extends JavaPlugin {
                         }
 
                         String sectionName = sectionNames.get(currentSection);
-                        List<Map.Entry<Location, BlockData>> blockList = sectionBlockLists.get(sectionName);
+                        List<Long2ObjectMap.Entry<BlockData>> blockList = sectionBlockLists.get(sectionName);
 
                         int blockIndex = sectionProgress.getOrDefault(sectionName, 0);
                         List<BlockUpdate> updates = new ArrayList<>();
 
                         while (blockIndex < blockList.size() && updates.size() < blocksPerTick) {
-                            Map.Entry<Location, BlockData> entry = blockList.get(blockIndex);
-                            Location loc = entry.getKey();
-                            loc.setWorld(world);
+                            Long2ObjectMap.Entry<BlockData> entry = blockList.get(blockIndex);
+                            long key = entry.getLongKey();
+                            int x = BlockPos.unpackX(key);
+                            int y = BlockPos.unpackY(key);
+                            int z = BlockPos.unpackZ(key);
                             BlockData originalData = entry.getValue();
 
                             boolean shouldUpdate;
                             if (regenOnlyModified) {
-                                Block block = world.getBlockAt(loc);
+                                Block block = world.getBlockAt(x, y, z);
                                 BlockData currentData = block.getBlockData();
                                 shouldUpdate = !currentData.equals(originalData);
                                 if (shouldUpdate) {
-                                    updates.add(
-                                            new BlockUpdate(block.getX(), block.getY(), block.getZ(), originalData));
+                                    updates.add(new BlockUpdate(x, y, z, originalData));
 
-                                    int chunkX = block.getX() >> 4;
-                                    int chunkZ = block.getZ() >> 4;
+                                    int chunkX = x >> 4;
+                                    int chunkZ = z >> 4;
                                     chunkCoordsToRefresh.add(((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL));
                                     totalBlocksReset.incrementAndGet();
                                 }
                             } else {
-                                updates.add(new BlockUpdate((int) loc.getX(), (int) loc.getY(), (int) loc.getZ(),
-                                        originalData));
-                                int chunkX = ((int) loc.getX()) >> 4;
-                                int chunkZ = ((int) loc.getZ()) >> 4;
+                                updates.add(new BlockUpdate(x, y, z, originalData));
+                                int chunkX = x >> 4;
+                                int chunkZ = z >> 4;
 
                                 chunkCoordsToRefresh.add(((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL));
                                 totalBlocksReset.incrementAndGet();

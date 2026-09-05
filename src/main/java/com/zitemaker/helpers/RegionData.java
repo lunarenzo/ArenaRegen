@@ -82,7 +82,7 @@ public class RegionData {
     );
 
     private final ArenaRegen plugin;
-    public final Map<String, Map<Location, BlockData>> sectionedBlockData = new ConcurrentHashMap<>();
+    public final Map<String, Long2ObjectMap<BlockData>> sectionedBlockData = new ConcurrentHashMap<>();
     private final Long2ObjectMap<BlockData> pristineBlockMap = new Long2ObjectOpenHashMap<>();
     private final Map<Location, Map<String, Object>> entityDataMap = new ConcurrentHashMap<>();
     private final Map<Location, BlockData> modifiedBlocks = new ConcurrentHashMap<>();
@@ -132,9 +132,10 @@ public class RegionData {
 
     public void addBlockToSection(String section, Location location, BlockData blockData) {
         int initialCap = (width > 0 && height > 0 && depth > 0) ? Math.min(1048576, (width * height * depth)) : 65536;
-        sectionedBlockData.computeIfAbsent(section, k -> new ConcurrentHashMap<>(initialCap)).put(location, blockData);
+        long key = BlockPos.pack(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+        sectionedBlockData.computeIfAbsent(section, k -> new Long2ObjectOpenHashMap<>(initialCap)).put(key, blockData);
         synchronized (pristineBlockMap) {
-            pristineBlockMap.put(BlockPos.pack(location.getBlockX(), location.getBlockY(), location.getBlockZ()), blockData);
+            pristineBlockMap.put(key, blockData);
         }
 
         World world;
@@ -233,7 +234,7 @@ public class RegionData {
     }
 
     public void addSection(String sectionName, Map<Location, BlockData> blocks) {
-        Map<Location, BlockData> sectionBlocks = new ConcurrentHashMap<>();
+        Long2ObjectMap<BlockData> sectionBlocks = new Long2ObjectOpenHashMap<>(blocks.size());
         World world = Bukkit.getWorld(worldName);
         if (world == null) {
             LOGGER.warning("[ArenaRegen] World '" + worldName + "' not found, cannot check for banners or signs in section " + sectionName);
@@ -245,13 +246,13 @@ public class RegionData {
                 LOGGER.warning("[ArenaRegen] Block data in section " + sectionName + " at " + location + " is null, replacing with air.");
                 blockData = getCachedBlockData("minecraft:air");
             }
-            sectionBlocks.put(location, blockData);
+            long key = BlockPos.pack(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+            sectionBlocks.put(key, blockData);
             if (world != null) {
                 Material mat = blockData.getMaterial();
                 if (isBannerMaterial(mat) || isSignMaterial(mat)) {
                     BlockState state = world.getBlockAt(location).getState();
-                if (state instanceof Banner) {
-                    Banner banner = (Banner) state;
+                if (state instanceof Banner banner) {
                     Map<String, Object> bannerData = new HashMap<>();
                     DyeColor baseColor = banner.getBaseColor();
                     bannerData.put("baseColor", baseColor != null ? baseColor.name() : "NONE");
@@ -272,8 +273,7 @@ public class RegionData {
                     }
                     bannerStates.put(location.clone(), bannerData);
                 }
-                if (state instanceof Sign) {
-                    Sign sign = (Sign) state;
+                if (state instanceof Sign sign) {
                     Map<String, Object> signData = new HashMap<>();
                     List<String> lines = new ArrayList<>();
                     for (int i = 0; i < 4; i++) {
@@ -305,9 +305,8 @@ public class RegionData {
         }
         sectionedBlockData.put(sectionName, sectionBlocks);
         synchronized (pristineBlockMap) {
-            for (Map.Entry<Location, BlockData> entry : sectionBlocks.entrySet()) {
-                Location loc = entry.getKey();
-                pristineBlockMap.put(BlockPos.pack(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()), entry.getValue());
+            for (Long2ObjectMap.Entry<BlockData> entry : sectionBlocks.long2ObjectEntrySet()) {
+                pristineBlockMap.put(entry.getLongKey(), entry.getValue());
             }
         }
     }
@@ -532,7 +531,7 @@ public class RegionData {
 
         File deltaFile = new File(datcFile.getParent(), datcFile.getName().replace(".datc", ".delta"));
 
-        Map<String, Map<Location, BlockData>> sectionedBlockDataCopy = new ConcurrentHashMap<>(sectionedBlockData);
+        Map<String, Long2ObjectMap<BlockData>> sectionedBlockDataCopy = new ConcurrentHashMap<>(sectionedBlockData);
         Map<Location, Map<String, Object>> entityDataMapCopy = new ConcurrentHashMap<>(entityDataMap);
         Map<Location, Map<String, Object>> bannerStatesCopy = new ConcurrentHashMap<>(bannerStates);
         Map<Location, Map<String, Object>> signStatesCopy = new ConcurrentHashMap<>(signStates);
@@ -541,7 +540,7 @@ public class RegionData {
 
         int bufferSize = calculateBufferSize();
         int sectionCount = sectionedBlockDataCopy.size();
-        long totalBlocks = sectionedBlockDataCopy.values().stream().mapToLong(Map::size).sum();
+        long totalBlocks = sectionedBlockDataCopy.values().stream().mapToLong(Long2ObjectMap::size).sum();
         int entityCount = entityDataMapCopy.size();
         int bannerCount = bannerStatesCopy.size();
         int signCount = signStatesCopy.size();
@@ -605,25 +604,34 @@ public class RegionData {
         return future;
     }
 
-    private void writeSections(DataOutputStream dos, Map<String, Map<Location, BlockData>> sectionedBlockDataCopy) throws IOException {
+    private void writeSections(DataOutputStream dos, Map<String, Long2ObjectMap<BlockData>> sectionedBlockDataCopy) throws IOException {
         dos.writeInt(sectionedBlockDataCopy.size());
-        for (Map.Entry<String, Map<Location, BlockData>> entry : sectionedBlockDataCopy.entrySet()) {
+        for (Map.Entry<String, Long2ObjectMap<BlockData>> entry : sectionedBlockDataCopy.entrySet()) {
             String sectionName = entry.getKey();
-            Map<Location, BlockData> blocks = entry.getValue();
+            Long2ObjectMap<BlockData> blocks = entry.getValue();
 
             dos.writeUTF(sectionName);
             dos.writeInt(blocks.size());
             int batchSize = 1000;
             int count = 0;
-            for (Map.Entry<Location, BlockData> blockEntry : blocks.entrySet()) {
-                Location loc = blockEntry.getKey();
+            for (Long2ObjectMap.Entry<BlockData> blockEntry : blocks.long2ObjectEntrySet()) {
+                long key = blockEntry.getLongKey();
                 BlockData blockData = blockEntry.getValue();
                 String blockDataStr = blockData != null ? blockData.getAsString() : "minecraft:air";
-                dos.writeInt(loc.getBlockX());
-                dos.writeInt(loc.getBlockY());
-                dos.writeInt(loc.getBlockZ());
+                dos.writeInt(BlockPos.unpackX(key));
+                dos.writeInt(BlockPos.unpackY(key));
+                dos.writeInt(BlockPos.unpackZ(key));
                 dos.writeUTF(blockDataStr);
                 count++;
+                if (count % batchSize == 0) {
+                    dos.flush();
+                }
+            }
+            if (count % batchSize != 0) {
+                dos.flush();
+            }
+        }
+    }
                 if (count % batchSize == 0) {
                     dos.flush();
                 }
@@ -1050,24 +1058,24 @@ public class RegionData {
             for (int i = 0; i < sectionCount; i++) {
                 String sectionName = dis.readUTF();
                 int blockCount = dis.readInt();
-                Map<Location, BlockData> blocks = new ConcurrentHashMap<>();
+                Long2ObjectMap<BlockData> blocks = new Long2ObjectOpenHashMap<>(blockCount);
 
                 for (int j = 0; j < blockCount; j++) {
                     int x = dis.readInt();
                     int y = dis.readInt();
                     int z = dis.readInt();
                     String blockDataStr = dis.readUTF();
+                    long key = BlockPos.pack(x, y, z);
 
-                    Location loc = new Location(world, x, y, z);
                     try {
                         BlockData blockData = getCachedBlockData(blockDataStr);
-                        blocks.put(loc, blockData);
-                        pristineBlockMap.put(BlockPos.pack(x, y, z), blockData);
+                        blocks.put(key, blockData);
+                        pristineBlockMap.put(key, blockData);
                     } catch (IllegalArgumentException e) {
-                        LOGGER.warning("[ArenaRegen] Invalid block data '" + blockDataStr + "' at " + loc + " in section " + sectionName + ": " + e.getMessage() + ", replacing with air.");
+                        LOGGER.warning("[ArenaRegen] Invalid block data '" + blockDataStr + "' at (" + x + "," + y + "," + z + ") in section " + sectionName + ": " + e.getMessage() + ", replacing with air.");
                         BlockData air = getCachedBlockData("minecraft:air");
-                        blocks.put(loc, air);
-                        pristineBlockMap.put(BlockPos.pack(x, y, z), air);
+                        blocks.put(key, air);
+                        pristineBlockMap.put(key, air);
                     }
                 }
                 sectionedBlockData.put(sectionName, blocks);

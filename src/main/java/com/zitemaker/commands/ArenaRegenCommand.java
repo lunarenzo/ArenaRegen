@@ -1,8 +1,10 @@
 package com.zitemaker.commands;
 
 import com.zitemaker.ArenaRegen;
+import com.zitemaker.helpers.BlockPos;
 import com.zitemaker.helpers.EntitySerializer;
 import com.zitemaker.helpers.RegionData;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -1172,18 +1174,21 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
         regionData.getSectionedBlockData().thenAccept(sectionedBlockData -> {
             Location min = null;
             Location max = null;
-            for (Map<Location, BlockData> section : sectionedBlockData.values()) {
-                for (Location loc : section.keySet()) {
+            for (Long2ObjectMap<BlockData> section : sectionedBlockData.values()) {
+                for (long key : section.keySet()) {
+                    int x = BlockPos.unpackX(key);
+                    int y = BlockPos.unpackY(key);
+                    int z = BlockPos.unpackZ(key);
                     if (min == null) {
-                        min = new Location(world, loc.getX(), loc.getY(), loc.getZ());
-                        max = new Location(world, loc.getX(), loc.getY(), loc.getZ());
+                        min = new Location(world, x, y, z);
+                        max = new Location(world, x, y, z);
                     } else {
-                        min.setX(Math.min(min.getX(), loc.getX()));
-                        min.setY(Math.min(min.getY(), loc.getY()));
-                        min.setZ(Math.min(min.getZ(), loc.getZ()));
-                        max.setX(Math.max(max.getX(), loc.getX()));
-                        max.setY(Math.max(max.getY(), loc.getY()));
-                        max.setZ(Math.max(max.getZ(), loc.getZ()));
+                        min.setX(Math.min(min.getX(), x));
+                        min.setY(Math.min(min.getY(), y));
+                        min.setZ(Math.min(min.getZ(), z));
+                        max.setX(Math.max(max.getX(), x));
+                        max.setY(Math.max(max.getY(), y));
+                        max.setZ(Math.max(max.getZ(), z));
                     }
                 }
             }
