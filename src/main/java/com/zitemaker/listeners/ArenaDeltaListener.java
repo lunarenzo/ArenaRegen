@@ -64,6 +64,10 @@ public final class ArenaDeltaListener implements Listener {
         World world = block.getWorld();
         int y = block.getY();
 
+        if (plugin.getWorldGuardHook().isExcluded(world, x, y, z)) {
+            return;
+        }
+
         for (RegionData region : regions) {
             if (region.containsLocation(world, x, y, z)) {
                 BlockData actualPristine = region.getPristineBlockData(x, y, z);

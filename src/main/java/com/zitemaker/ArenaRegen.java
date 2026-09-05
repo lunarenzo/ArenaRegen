@@ -12,6 +12,9 @@ import com.zitemaker.listeners.ArenaDeltaListener;
 import com.zitemaker.listeners.PlayerMoveListener;
 import com.zitemaker.nms.BlockUpdate;
 import com.zitemaker.nms.NMSHandlerFactoryProvider;
+import com.zitemaker.hook.WorldGuardHook;
+import com.zitemaker.hook.impl.DefaultWorldGuardHook;
+import com.zitemaker.hook.impl.NoOpWorldGuardHook;
 import com.zitemaker.placeholders.ArenaRegenExpansion;
 import com.zitemaker.utils.*;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -95,6 +98,11 @@ public class ArenaRegen extends JavaPlugin implements Listener {
     public boolean regenerateOnEmpty;
     public int regenerateOnEmptyDelay;
     public String arenaLoadingMode = "LAZY";
+    private WorldGuardHook worldGuardHook = new NoOpWorldGuardHook();
+
+    public WorldGuardHook getWorldGuardHook() {
+        return worldGuardHook;
+    }
 
     private int saveTaskId = -1;
     private final Map<String, Integer> scheduledTasks = new ConcurrentHashMap<>();
@@ -487,6 +495,13 @@ public class ArenaRegen extends JavaPlugin implements Listener {
         this.regenerateOnEmpty = getConfig().getBoolean("regen.regenerate-on-empty", false);
         this.regenerateOnEmptyDelay = getConfig().getInt("regen.regenerate-on-empty-delay", 5);
         this.arenaLoadingMode = getConfig().getString("general.arena-loading-mode", "LAZY").toUpperCase();
+        List<String> excludedWG = getConfig().getStringList("general.exclude-worldguard-regions");
+        if (Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) {
+            this.worldGuardHook = new DefaultWorldGuardHook(excludedWG);
+            logger.info(ARChatColor.GREEN + "WorldGuard hook active. Excluded regions: " + excludedWG);
+        } else {
+            this.worldGuardHook = new NoOpWorldGuardHook();
+        }
     }
 
     public void reloadPluginConfig() {
@@ -1464,7 +1479,9 @@ public class ArenaRegen extends JavaPlugin implements Listener {
                             BlockData originalData = entry.getValue();
 
                             boolean shouldUpdate = true;
-                            if (regenOnlyModified) {
+                            if (worldGuardHook.isExcluded(world, x, y, z)) {
+                                shouldUpdate = false;
+                            } else if (regenOnlyModified) {
                                 int cx = x >> 4;
                                 int cz = z >> 4;
                                 long cKey = (((long) cx) << 32) | (cz & 0xFFFFFFFFL);

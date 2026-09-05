@@ -31,6 +31,10 @@ general:
   #     - Pros: 0ms delay on first regeneration; all block data is pre-cached in memory.
   #     - Cons: Higher background CPU usage during server startup, higher idle RAM consumption.
   arena-loading-mode: LAZY
+  # List of WorldGuard region IDs to exclude from tracking and regeneration (e.g. safezone spawn)
+  exclude-worldguard-regions:
+    - "ffasafezone"
+
 
 
 regen:
