@@ -8,6 +8,8 @@ import org.bukkit.block.Banner;
 import org.bukkit.block.Sign;
 import org.bukkit.block.banner.Pattern;
 import org.bukkit.block.banner.PatternType;
+import org.bukkit.inventory.BlockInventoryHolder;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -80,6 +82,7 @@ public class RegionData {
     private final Map<Location, BlockData> modifiedBlocks = new ConcurrentHashMap<>();
     private final Map<Location, Map<String, Object>> bannerStates = new ConcurrentHashMap<>();
     private final Map<Location, Map<String, Object>> signStates = new ConcurrentHashMap<>();
+    private final Map<Location, ItemStack[]> containerStates = new ConcurrentHashMap<>();
     private final DeltaLedger deltaLedger = new DeltaLedger();
 
     private String creator;
@@ -241,6 +244,16 @@ public class RegionData {
                         signData.put("persistentData", pdcData);
                     }
                     signStates.put(location.clone(), signData);
+                } else if (state instanceof BlockInventoryHolder holder) {
+                    Inventory inv = holder.getInventory();
+                    ItemStack[] contents = inv.getContents();
+                    if (contents != null) {
+                        ItemStack[] copy = new ItemStack[contents.length];
+                        for (int i = 0; i < contents.length; i++) {
+                            copy[i] = contents[i] != null ? contents[i].clone() : null;
+                        }
+                        containerStates.put(location.clone(), copy);
+                    }
                 }
             }
         }
@@ -374,12 +387,46 @@ public class RegionData {
         signStates.clear();
     }
 
+    public Map<Location, ItemStack[]> getContainerStates() {
+        return new HashMap<>(containerStates);
+    }
+
+    public void clearContainers() {
+        containerStates.clear();
+    }
+
+    public void restoreContainerStates(World world) {
+        if (containerStates.isEmpty() || world == null) return;
+        for (Map.Entry<Location, ItemStack[]> entry : containerStates.entrySet()) {
+            Location loc = entry.getKey();
+            try {
+                BlockState state = world.getBlockAt(loc).getState();
+                if (state instanceof BlockInventoryHolder holder) {
+                    Inventory inv = holder.getInventory();
+                    ItemStack[] saved = entry.getValue();
+                    inv.clear();
+                    if (saved != null) {
+                        int len = Math.min(inv.getSize(), saved.length);
+                        for (int i = 0; i < len; i++) {
+                            if (saved[i] != null && !saved[i].getType().isAir()) {
+                                inv.setItem(i, saved[i].clone());
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.warning("[ArenaRegen] Failed to restore container at " + loc + ": " + e.getMessage());
+            }
+        }
+    }
+
     public void clearRegion(String regionName) {
         sectionedBlockData.clear();
         entityDataMap.clear();
         modifiedBlocks.clear();
         bannerStates.clear();
         signStates.clear();
+        containerStates.clear();
         deltaLedger.clear();
         plugin.getSpatialRegionIndex().unregisterRegion(this);
         plugin.getPendingDeletions().remove(regionName);

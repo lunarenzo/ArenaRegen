@@ -985,6 +985,21 @@ public class ArenaRegen extends JavaPlugin {
                     NMSHandlerFactoryProvider.getNMSHandler().relightChunks(world, new ArrayList<>(affectedChunks), updates);
                 }
 
+                if (trackEntities) {
+                    Map<Location, Map<String, Object>> entityDataMap = regionData.getEntityDataMap();
+                    for (Map.Entry<Location, Map<String, Object>> entry : entityDataMap.entrySet()) {
+                        Location loc = entry.getKey();
+                        Map<String, Object> serializedEntity = entry.getValue();
+                        try {
+                            EntitySerializer.deserializeEntity(serializedEntity, loc);
+                        } catch (Exception e) {
+                            logger.info("[ArenaRegen] Failed to restore entity at " + loc + ": " + e.getMessage());
+                        }
+                    }
+                }
+
+                regionData.restoreContainerStates(world);
+
                 File datcFile = regionData.getDatcFile();
                 if (datcFile != null) {
                     File deltaFile = new File(datcFile.getParent(), datcFile.getName().replace(".datc", ".delta"));
@@ -1317,6 +1332,8 @@ public class ArenaRegen extends JavaPlugin {
                                     getLogger().warning("Failed to restore sign at " + loc + ": " + e.getMessage());
                                 }
                             }
+
+                            regionData.restoreContainerStates(world);
 
                             Bukkit.getScheduler().runTaskLater(this, () -> {
 
