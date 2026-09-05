@@ -999,6 +999,19 @@ public class ArenaRegen extends JavaPlugin implements Listener {
         } catch (Exception ignored) {
         }
         DeltaLedger deltaLedger = regionData.getDeltaLedger();
+        if (sender == null && deltaLedger.isEmpty() && regenOnlyModified) {
+            synchronized (regeneratingArenas) {
+                regeneratingArenas.remove(arenaName);
+            }
+            synchronized (dirtyRegions) {
+                dirtyRegions.remove(arenaName);
+            }
+            if (regionData.isLocked()) {
+                regionData.setLocked(false);
+            }
+            logger.info("[ArenaRegen] Region '" + arenaName + "' is already pristine (0 blocks modified).");
+            return;
+        }
         if (!deltaLedger.isEmpty()) {
             if (!handlePlayersAndEntitiesBeforeRegen(world, regionData, arenaName, sender)) {
                 return;
@@ -1080,18 +1093,12 @@ public class ArenaRegen extends JavaPlugin implements Listener {
         try {
             regionData.getSectionedBlockData().thenApplyAsync(sectionedBlockData -> {
 
-                if (sectionedBlockData.isEmpty()) {
+                if (sectionedBlockData == null || sectionedBlockData.isEmpty()) {
                     return null;
                 }
 
                 List<String> sectionNames = new ArrayList<>(sectionedBlockData.keySet());
-                Map<String, List<Long2ObjectMap.Entry<BlockData>>> sectionBlockLists = new HashMap<>();
-                for (String sectionName : sectionNames) {
-                    Long2ObjectMap<BlockData> section = sectionedBlockData.get(sectionName);
-                    sectionBlockLists.put(sectionName, new ArrayList<>(section.long2ObjectEntrySet()));
-                }
-
-                return new Object[] { sectionNames, sectionBlockLists };
+                return new Object[] { sectionNames, sectionedBlockData };
             }).thenAccept(preparedData -> Bukkit.getScheduler().runTask(this, () -> {
                 try {
                     if (preparedData == null) {
@@ -1109,7 +1116,7 @@ public class ArenaRegen extends JavaPlugin implements Listener {
                     @SuppressWarnings("unchecked")
                     List<String> sectionNames = (List<String>) preparedData[0];
                     @SuppressWarnings("unchecked")
-                    Map<String, List<Long2ObjectMap.Entry<BlockData>>> sectionBlockLists = (Map<String, List<Long2ObjectMap.Entry<BlockData>>>) preparedData[1];
+                    Map<String, Long2ObjectMap<BlockData>> sectionBlockLists = (Map<String, Long2ObjectMap<BlockData>>) preparedData[1];
 
                     boolean wasLocked = regionData.isLocked();
                     if (lockDuringRegeneration && !wasLocked) {
@@ -1438,7 +1445,12 @@ public class ArenaRegen extends JavaPlugin implements Listener {
                         }
 
                         String sectionName = sectionNames.get(currentSection);
-                        List<Long2ObjectMap.Entry<BlockData>> blockList = sectionBlockLists.get(sectionName);
+                        Long2ObjectMap<BlockData> sectionMap = sectionBlockLists.get(sectionName);
+                        if (sectionMap == null || sectionMap.isEmpty()) {
+                            currentSection++;
+                            return;
+                        }
+                        List<Long2ObjectMap.Entry<BlockData>> blockList = new ArrayList<>(sectionMap.long2ObjectEntrySet());
 
                         int blockIndex = sectionProgress.getOrDefault(sectionName, 0);
                         List<BlockUpdate> updates = new ArrayList<>();
