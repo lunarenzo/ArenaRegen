@@ -162,10 +162,6 @@ public class NMSHandler_1_21 implements NMSHandler {
                     }
                 } catch (Exception ignored) {
                 }
-                 LOGGER.warning("Failed to process lighting updates for batch: " +
-                 lightProcessException.getMessage());
-                 }
-                 */
 
                 for (int i = 0; i < batchSize; i++) {
                     ChunkPos chunkPos = chunks.get(index + i);
