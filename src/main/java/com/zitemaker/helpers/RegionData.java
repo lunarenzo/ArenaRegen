@@ -129,49 +129,56 @@ public class RegionData {
 
         
         
-        Material mat = blockData.getMaterial();
-        if (isBannerMaterial(mat) || isSignMaterial(mat)) {
-            World world = location.getWorld();
-            if (world != null) {
-                BlockState state = world.getBlockAt(location).getState();
-                if (state instanceof Banner) {
-                    Banner banner = (Banner) state;
-                    Map<String, Object> bannerData = new HashMap<>();
-                    DyeColor baseColor = banner.getBaseColor();
-                    bannerData.put("baseColor", baseColor != null ? baseColor.name() : "NONE");
-                    List<Map<String, String>> patternDataList = new ArrayList<>();
-                    for (Pattern pattern : banner.getPatterns()) {
-                        Map<String, String> patternData = new HashMap<>();
-                        DyeColor color = pattern.getColor();
-                        patternData.put("color", color.name());
-                        String patternIdentifier = resolvePatternIdentifier(pattern);
-                        patternData.put("type", patternIdentifier);
-                        patternDataList.add(patternData);
+        World world = location.getWorld();
+        if (world != null) {
+            BlockState state = world.getBlockAt(location).getState();
+            if (state instanceof Banner) {
+                Banner banner = (Banner) state;
+                Map<String, Object> bannerData = new HashMap<>();
+                DyeColor baseColor = banner.getBaseColor();
+                bannerData.put("baseColor", baseColor != null ? baseColor.name() : "NONE");
+                List<Map<String, String>> patternDataList = new ArrayList<>();
+                for (Pattern pattern : banner.getPatterns()) {
+                    Map<String, String> patternData = new HashMap<>();
+                    DyeColor color = pattern.getColor();
+                    patternData.put("color", color.name());
+                    String patternIdentifier = resolvePatternIdentifier(pattern);
+                    patternData.put("type", patternIdentifier);
+                    patternDataList.add(patternData);
+                }
+                bannerData.put("patterns", patternDataList);
+                PersistentDataContainer pdc = banner.getPersistentDataContainer();
+                if (!pdc.isEmpty()) {
+                    Map<String, Object> pdcData = serializePdc(pdc);
+                    bannerData.put("persistentData", pdcData);
+                }
+                bannerStates.put(location.clone(), bannerData);
+            } else if (state instanceof Sign) {
+                Sign sign = (Sign) state;
+                Map<String, Object> signData = new HashMap<>();
+                List<String> lines = new ArrayList<>();
+                for (int i = 0; i < 4; i++) {
+                    lines.add(sign.getLine(i));
+                }
+                signData.put("lines", lines);
+                DyeColor color = sign.getColor();
+                signData.put("color", color != null ? color.name() : "BLACK");
+                signData.put("glowing", sign.isGlowingText());
+                PersistentDataContainer pdc = sign.getPersistentDataContainer();
+                if (!pdc.isEmpty()) {
+                    Map<String, Object> pdcData = serializePdc(pdc);
+                    signData.put("persistentData", pdcData);
+                }
+                signStates.put(location.clone(), signData);
+            } else if (state instanceof BlockInventoryHolder holder) {
+                Inventory inv = holder.getInventory();
+                ItemStack[] contents = inv.getContents();
+                if (contents != null) {
+                    ItemStack[] copy = new ItemStack[contents.length];
+                    for (int i = 0; i < contents.length; i++) {
+                        copy[i] = contents[i] != null ? contents[i].clone() : null;
                     }
-                    bannerData.put("patterns", patternDataList);
-                    PersistentDataContainer pdc = banner.getPersistentDataContainer();
-                    if (!pdc.isEmpty()) {
-                        Map<String, Object> pdcData = serializePdc(pdc);
-                        bannerData.put("persistentData", pdcData);
-                    }
-                    bannerStates.put(location.clone(), bannerData);
-                } else if (state instanceof Sign) {
-                    Sign sign = (Sign) state;
-                    Map<String, Object> signData = new HashMap<>();
-                    List<String> lines = new ArrayList<>();
-                    for (int i = 0; i < 4; i++) {
-                        lines.add(sign.getLine(i));
-                    }
-                    signData.put("lines", lines);
-                    DyeColor color = sign.getColor();
-                    signData.put("color", color != null ? color.name() : "BLACK");
-                    signData.put("glowing", sign.isGlowingText());
-                    PersistentDataContainer pdc = sign.getPersistentDataContainer();
-                    if (!pdc.isEmpty()) {
-                        Map<String, Object> pdcData = serializePdc(pdc);
-                        signData.put("persistentData", pdcData);
-                    }
-                    signStates.put(location.clone(), signData);
+                    containerStates.put(location.clone(), copy);
                 }
             }
         }
@@ -519,6 +526,7 @@ public class RegionData {
                     writeEntities(dos, entityDataMapCopy);
                     writeBanners(dos, bannerStatesCopy);
                     writeSigns(dos, signStatesCopy);
+                    writeContainers(dos, containerStatesCopy);
                     writeModifiedBlocks(dos, modifiedBlocksCopy);
                     dos.flush();
 
@@ -798,6 +806,43 @@ public class RegionData {
             dos.writeInt(loc.getBlockY());
             dos.writeInt(loc.getBlockZ());
             dos.writeUTF(blockDataStr);
+
+            count++;
+            if (count % batchSize == 0) {
+                dos.flush();
+            }
+        }
+        if (count % batchSize != 0) {
+            dos.flush();
+        }
+    }
+
+    private void writeContainers(DataOutputStream dos, Map<Location, ItemStack[]> containerStatesCopy) throws IOException {
+        dos.writeInt(containerStatesCopy.size());
+        int batchSize = 100;
+        int count = 0;
+        for (Map.Entry<Location, ItemStack[]> entry : containerStatesCopy.entrySet()) {
+            Location loc = entry.getKey();
+            ItemStack[] contents = entry.getValue();
+
+            dos.writeDouble(loc.getX());
+            dos.writeDouble(loc.getY());
+            dos.writeDouble(loc.getZ());
+
+            if (contents != null && contents.length > 0) {
+                dos.writeInt(contents.length);
+                for (ItemStack item : contents) {
+                    if (item != null && !item.getType().isAir()) {
+                        byte[] bytes = item.serializeAsBytes();
+                        dos.writeInt(bytes.length);
+                        dos.write(bytes);
+                    } else {
+                        dos.writeInt(0);
+                    }
+                }
+            } else {
+                dos.writeInt(0);
+            }
 
             count++;
             if (count % batchSize == 0) {
@@ -1197,6 +1242,36 @@ public class RegionData {
         }
     }
 
+    private void readContainers(DataInputStream dis, World world, String fileVersion) throws IOException {
+        containerStates.clear();
+        if (dis.available() <= 0) return;
+        int containerCount = dis.readInt();
+        for (int i = 0; i < containerCount; i++) {
+            double x = dis.readDouble();
+            double y = dis.readDouble();
+            double z = dis.readDouble();
+            Location loc = new Location(world, x, y, z);
+            int slotCount = dis.readInt();
+            ItemStack[] contents = new ItemStack[slotCount];
+            for (int j = 0; j < slotCount; j++) {
+                int byteLen = dis.readInt();
+                if (byteLen > 0) {
+                    byte[] bytes = new byte[byteLen];
+                    dis.readFully(bytes);
+                    try {
+                        contents[j] = ItemStack.deserializeBytes(bytes);
+                    } catch (Exception e) {
+                        LOGGER.warning("[ArenaRegen] Failed to deserialize item at slot " + j + " for container at " + loc + ": " + e.getMessage());
+                        contents[j] = null;
+                    }
+                } else {
+                    contents[j] = null;
+                }
+            }
+            containerStates.put(loc, contents);
+        }
+    }
+
     private void readModifiedBlocks(DataInputStream dis, World world) throws IOException {
         int modifiedCount = dis.readInt();
         modifiedBlocks.clear();
@@ -1247,6 +1322,7 @@ public class RegionData {
                 readEntities(dis, world);
                 readBanners(dis, world, fileVersion);
                 readSigns(dis, world, fileVersion);
+                readContainers(dis, world, fileVersion);
                 readModifiedBlocks(dis, world);
 
                 isBlockDataLoaded = true;

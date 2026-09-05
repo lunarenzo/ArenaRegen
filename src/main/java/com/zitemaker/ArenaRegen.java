@@ -950,6 +950,10 @@ public class ArenaRegen extends JavaPlugin {
     }
 
     private void proceedWithRegeneration(String arenaName, CommandSender sender, RegionData regionData, World world) {
+        try {
+            regionData.ensureBlockDataLoaded().join();
+        } catch (Exception ignored) {
+        }
         DeltaLedger deltaLedger = regionData.getDeltaLedger();
         if (!deltaLedger.isEmpty()) {
             if (!handlePlayersAndEntitiesBeforeRegen(world, regionData, arenaName, sender)) {
