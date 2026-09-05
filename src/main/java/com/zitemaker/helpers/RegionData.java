@@ -636,15 +636,6 @@ public class RegionData {
             }
         }
     }
-                if (count % batchSize == 0) {
-                    dos.flush();
-                }
-            }
-            if (count % batchSize != 0) {
-                dos.flush();
-            }
-        }
-    }
 
     private static Object makeSerializable(Object obj) {
         if (obj instanceof org.bukkit.util.Vector vector) {
