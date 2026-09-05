@@ -131,7 +131,11 @@ public class RegionData {
     }
 
     public void addBlockToSection(String section, Location location, BlockData blockData) {
-        sectionedBlockData.computeIfAbsent(section, k -> new ConcurrentHashMap<>()).put(location, blockData);
+        int initialCap = (width > 0 && height > 0 && depth > 0) ? Math.min(1048576, (width * height * depth)) : 65536;
+        sectionedBlockData.computeIfAbsent(section, k -> new ConcurrentHashMap<>(initialCap)).put(location, blockData);
+        synchronized (pristineBlockMap) {
+            pristineBlockMap.put(BlockPos.pack(location.getBlockX(), location.getBlockY(), location.getBlockZ()), blockData);
+        }
 
         World world;
         Material mat = blockData.getMaterial();
