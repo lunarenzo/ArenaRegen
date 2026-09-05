@@ -1058,6 +1058,12 @@ public class RegionData {
     }
 
     public synchronized BlockData getPristineBlockData(int x, int y, int z) {
+        if (!isBlockDataLoaded && pristineBlockMap.isEmpty()) {
+            try {
+                ensureBlockDataLoaded().join();
+            } catch (Exception ignored) {
+            }
+        }
         if (pristineBlockMap.isEmpty()) {
             return null;
         }

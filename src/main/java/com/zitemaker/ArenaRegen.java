@@ -25,7 +25,11 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.FallingBlock;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
+import org.bukkit.entity.TNTPrimed;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -260,6 +264,7 @@ public class ArenaRegen extends JavaPlugin {
             regionData.setDatcFile(file);
 
             CompletableFuture<Void> loadFuture = regionData.loadFromDatc(file)
+                    .thenCompose(v -> regionData.ensureBlockDataLoaded())
                     .thenRun(() -> {
                         registeredRegions.put(regionName, regionData);
                         loadedRegions.incrementAndGet();
@@ -940,11 +945,10 @@ public class ArenaRegen extends JavaPlugin {
             }
         }
 
-        if (trackEntities) {
-            world.getEntities().stream()
-                    .filter(e -> !(e instanceof Player) && regionData.containsLocation(world, e.getLocation().getBlockX(), e.getLocation().getBlockY(), e.getLocation().getBlockZ()))
-                    .forEach(Entity::remove);
-        }
+        world.getEntities().stream()
+                .filter(e -> !(e instanceof Player) && (trackEntities || e instanceof TNTPrimed || e instanceof FallingBlock || e instanceof Projectile || e instanceof Item)
+                        && regionData.containsLocation(world, e.getLocation().getBlockX(), e.getLocation().getBlockY(), e.getLocation().getBlockZ()))
+                .forEach(Entity::remove);
 
         return true;
     }
