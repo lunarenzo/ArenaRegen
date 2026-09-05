@@ -94,6 +94,7 @@ public class ArenaRegen extends JavaPlugin implements Listener {
     private boolean lockDuringRegeneration;
     public boolean regenerateOnEmpty;
     public int regenerateOnEmptyDelay;
+    public String arenaLoadingMode = "LAZY";
 
     private int saveTaskId = -1;
     private final Map<String, Integer> scheduledTasks = new ConcurrentHashMap<>();
@@ -293,13 +294,20 @@ public class ArenaRegen extends JavaPlugin implements Listener {
             regionData.setDatcFile(file);
 
             CompletableFuture<Void> loadFuture = regionData.loadFromDatc(file)
+                    .thenCompose(v -> {
+                        if ("EAGER".equalsIgnoreCase(arenaLoadingMode)) {
+                            return regionData.ensureBlockDataLoaded();
+                        }
+                        return CompletableFuture.completedFuture(null);
+                    })
                     .thenRun(() -> {
                         registeredRegions.put(regionName, regionData);
                         if (Bukkit.getWorld(regionData.getWorldName()) != null) {
                             spatialRegionIndex.registerRegion(regionData);
                         }
                         loadedRegions.incrementAndGet();
-                        logger.info(ARChatColor.GREEN + "Loaded arena '" + regionName + "' metadata successfully.");
+                        logger.info(ARChatColor.GREEN + "Loaded arena '" + regionName + "' metadata successfully"
+                                + ("EAGER".equalsIgnoreCase(arenaLoadingMode) ? " (pre-loaded block data)." : "."));
                     })
                     .exceptionally(e -> {
                         logger.info(ARChatColor.RED + "Failed to load arena '" + regionName + "' from " + file.getName()
@@ -478,6 +486,7 @@ public class ArenaRegen extends JavaPlugin implements Listener {
         this.lockDuringRegeneration = getConfig().getBoolean("regen.lock-arenas", true);
         this.regenerateOnEmpty = getConfig().getBoolean("regen.regenerate-on-empty", false);
         this.regenerateOnEmptyDelay = getConfig().getInt("regen.regenerate-on-empty-delay", 5);
+        this.arenaLoadingMode = getConfig().getString("general.arena-loading-mode", "LAZY").toUpperCase();
     }
 
     public void reloadPluginConfig() {

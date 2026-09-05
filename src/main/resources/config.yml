@@ -21,6 +21,17 @@ general:
   analyze-speed: 40000 # How many blocks to analyze per second when creating an arena
   selection-tool: GOLDEN_HOE # The item to be used as the selection tool (Valid options: https://dev.bukkit.org/projects/supplies/pages/material-list)
   preview-particle: FLAME # The particles to be used for arena previews (Valid options: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Particle.html)
+  # Arena Block Data Loading Mode: LAZY or EAGER
+  #   LAZY (Default - Recommended for Shared / Low-RAM Hosting):
+  #     - Boot: Instant (< 1ms per arena). Metadata loaded on boot; block data loaded on-demand during first regen.
+  #     - Pros: 0% boot CPU usage, minimal RAM footprint, safe for low-end shared hosting.
+  #     - Cons: Slight async disk read delay on the very FIRST regeneration of an arena.
+  #   EAGER (Recommended for High-Performance Dedicated Hosting):
+  #     - Boot: Metadata loaded instantly, then block data is pre-loaded asynchronously in the background.
+  #     - Pros: 0ms delay on first regeneration; all block data is pre-cached in memory.
+  #     - Cons: Higher background CPU usage during server startup, higher idle RAM consumption.
+  arena-loading-mode: LAZY
+
 
 regen:
   lock-arenas: true # When set to true, players cannot enter arenas while they are being regenerated.
