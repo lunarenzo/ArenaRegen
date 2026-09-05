@@ -1438,19 +1438,12 @@ public class ArenaRegen extends JavaPlugin {
                                     }
                                 }
                             }
-                            if (shouldUpdate) {
-                                    updates.add(new BlockUpdate(x, y, z, originalData));
 
-                                    int chunkX = x >> 4;
-                                    int chunkZ = z >> 4;
-                                    chunkCoordsToRefresh.add(((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL));
-                                    totalBlocksReset.incrementAndGet();
-                                }
-                            } else {
+                            if (shouldUpdate) {
                                 updates.add(new BlockUpdate(x, y, z, originalData));
+
                                 int chunkX = x >> 4;
                                 int chunkZ = z >> 4;
-
                                 chunkCoordsToRefresh.add(((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL));
                                 totalBlocksReset.incrementAndGet();
                             }
