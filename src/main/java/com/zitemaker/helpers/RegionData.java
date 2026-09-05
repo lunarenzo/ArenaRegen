@@ -1424,15 +1424,24 @@ public class RegionData {
         isBlockDataLoaded = false;
     }
 
-    public CompletableFuture<Map<String, Map<Location, BlockData>>> getSectionedBlockData() {
+    public CompletableFuture<Map<String, Long2ObjectMap<BlockData>>> getSectionedBlockData() {
         return ensureBlockDataLoaded().thenApply(v -> sectionedBlockData);
     }
 
     public CompletableFuture<Map<Location, BlockData>> getAllBlocks() {
         return ensureBlockDataLoaded().thenApply(v -> {
             Map<Location, BlockData> allBlocks = new ConcurrentHashMap<>();
-            for (Map.Entry<String, Map<Location, BlockData>> entry : sectionedBlockData.entrySet()) {
-                allBlocks.putAll(entry.getValue());
+            World world = Bukkit.getWorld(worldName);
+            for (Map.Entry<String, Long2ObjectMap<BlockData>> entry : sectionedBlockData.entrySet()) {
+                for (Long2ObjectMap.Entry<BlockData> blockEntry : entry.getValue().long2ObjectEntrySet()) {
+                    long key = blockEntry.getLongKey();
+                    int x = BlockPos.unpackX(key);
+                    int y = BlockPos.unpackY(key);
+                    int z = BlockPos.unpackZ(key);
+                    if (world != null) {
+                        allBlocks.put(new Location(world, x, y, z), blockEntry.getValue());
+                    }
+                }
             }
             return allBlocks;
         });
