@@ -35,6 +35,8 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.BoundingBox;
+import org.bukkit.util.Vector;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
@@ -1137,17 +1139,10 @@ public class ArenaRegen extends JavaPlugin {
                     }
 
                     if (trackEntities) {
-                        world.getEntities().stream()
-                                .filter(e -> {
-                                    Location loc = e.getLocation();
-                                    return loc.getX() >= minX && loc.getX() <= maxX &&
-                                            loc.getY() >= minY && loc.getY() <= maxY &&
-                                            loc.getZ() >= minZ && loc.getZ() <= maxZ;
-                                })
-                                .forEach(e -> {
-                                    if (!(e instanceof Player))
-                                        e.remove();
-                                });
+                        BoundingBox box = BoundingBox.of(new Vector(minX, minY, minZ), new Vector(maxX + 1, maxY + 1, maxZ + 1));
+                        for (Entity e : world.getNearbyEntities(box, entity -> !(entity instanceof Player))) {
+                            e.remove();
+                        }
                     }
 
                     if (sender != null) {

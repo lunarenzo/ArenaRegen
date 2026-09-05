@@ -31,6 +31,7 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -254,15 +255,12 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
                         + regionName + "', please wait...");
                 List<Map.Entry<Location, Map<String, Object>>> entitiesToAdd = new ArrayList<>();
                 if (plugin.trackEntities) {
-                    for (Entity entity : world.getEntities()) {
+                    BoundingBox box = BoundingBox.of(new Vector(minX, minY, minZ), new Vector(maxX + 1, maxY + 1, maxZ + 1));
+                    for (Entity entity : world.getNearbyEntities(box, e -> !(e instanceof Player))) {
                         Location loc = entity.getLocation();
-                        if (loc.getX() >= minX && loc.getX() <= maxX &&
-                                loc.getY() >= minY && loc.getY() <= maxY &&
-                                loc.getZ() >= minZ && loc.getZ() <= maxZ) {
-                            Map<String, Object> serialized = EntitySerializer.serializeEntity(entity);
-                            if (serialized != null) {
-                                entitiesToAdd.add(new AbstractMap.SimpleEntry<>(loc, serialized));
-                            }
+                        Map<String, Object> serialized = EntitySerializer.serializeEntity(entity);
+                        if (serialized != null) {
+                            entitiesToAdd.add(new AbstractMap.SimpleEntry<>(loc, serialized));
                         }
                     }
                 }
