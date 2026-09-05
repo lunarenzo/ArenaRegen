@@ -131,16 +131,20 @@ public class RegionData {
     }
 
     public void addBlockToSection(String section, Location location, BlockData blockData) {
+        addBlockToSection(section, location != null ? location.getWorld() : null, location != null ? location.getBlockX() : 0, location != null ? location.getBlockY() : 0, location != null ? location.getBlockZ() : 0, blockData);
+    }
+
+    public void addBlockToSection(String section, World world, int x, int y, int z, BlockData blockData) {
         int initialCap = (width > 0 && height > 0 && depth > 0) ? Math.min(1048576, (width * height * depth)) : 65536;
-        long key = BlockPos.pack(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+        long key = BlockPos.pack(x, y, z);
         sectionedBlockData.computeIfAbsent(section, k -> new Long2ObjectOpenHashMap<>(initialCap)).put(key, blockData);
         synchronized (pristineBlockMap) {
             pristineBlockMap.put(key, blockData);
         }
 
-        World world;
         Material mat = blockData.getMaterial();
-        if (isTileEntityMaterial(mat) && (world = location.getWorld()) != null) {
+        if (isTileEntityMaterial(mat) && world != null) {
+            Location location = new Location(world, x, y, z);
             BlockState state = world.getBlockAt(location).getState();
             if (state instanceof Banner) {
                 Banner banner = (Banner) state;

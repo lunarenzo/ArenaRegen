@@ -321,8 +321,7 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
                                 }
                             }
                             BlockData blockData = (nmsState != null) ? CraftBlockData.fromData(nmsState) : world.getBlockAt(x, y, z).getBlockData();
-                            Location loc = new Location(world, x, y, z);
-                            regionData.addBlockToSection("temp", loc, blockData);
+                            regionData.addBlockToSection("temp", world, x, y, z, blockData);
 
                             blocksThisTick++;
                             processedBlocks.incrementAndGet();
@@ -572,8 +571,7 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
                                 }
                             }
                             BlockData blockData = (nmsState != null) ? CraftBlockData.fromData(nmsState) : world.getBlockAt(x, y, z).getBlockData();
-                            Location loc = new Location(world, x, y, z);
-                            regionData.addBlockToSection(sectionName, loc, blockData);
+                            regionData.addBlockToSection(sectionName, world, x, y, z, blockData);
 
                             blocksThisTick++;
                             processedBlocks.incrementAndGet();
