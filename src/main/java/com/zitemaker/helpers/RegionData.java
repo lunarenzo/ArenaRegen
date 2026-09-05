@@ -484,6 +484,7 @@ public class RegionData {
         Map<Location, Map<String, Object>> entityDataMapCopy = new ConcurrentHashMap<>(entityDataMap);
         Map<Location, Map<String, Object>> bannerStatesCopy = new ConcurrentHashMap<>(bannerStates);
         Map<Location, Map<String, Object>> signStatesCopy = new ConcurrentHashMap<>(signStates);
+        Map<Location, ItemStack[]> containerStatesCopy = new ConcurrentHashMap<>(containerStates);
         Map<Location, BlockData> modifiedBlocksCopy = new ConcurrentHashMap<>(modifiedBlocks);
 
         int bufferSize = calculateBufferSize();
