@@ -133,10 +133,9 @@ public class RegionData {
     public void addBlockToSection(String section, Location location, BlockData blockData) {
         sectionedBlockData.computeIfAbsent(section, k -> new ConcurrentHashMap<>()).put(location, blockData);
 
-        
-        
-        World world = location.getWorld();
-        if (world != null) {
+        World world;
+        Material mat = blockData.getMaterial();
+        if (isTileEntityMaterial(mat) && (world = location.getWorld()) != null) {
             BlockState state = world.getBlockAt(location).getState();
             if (state instanceof Banner) {
                 Banner banner = (Banner) state;
@@ -208,6 +207,15 @@ public class RegionData {
                 }
             }
         }
+    }
+
+    private boolean isTileEntityMaterial(Material mat) {
+        if (mat == null || mat.isAir()) return false;
+        String name = mat.name();
+        return name.endsWith("_BANNER") || name.endsWith("_WALL_BANNER") ||
+               name.endsWith("_SIGN") || name.endsWith("_WALL_SIGN") || name.endsWith("_HANGING_SIGN") || name.endsWith("_WALL_HANGING_SIGN") ||
+               name.endsWith("_CHEST") || name.endsWith("_SHULKER_BOX") || name.endsWith("_BARREL") ||
+               name.equals("CHISELED_BOOKSHELF") || name.equals("JUKEBOX") || name.equals("HOPPER") || name.equals("DISPENSER") || name.equals("DROPPER") || name.equals("FURNACE") || name.equals("BLAST_FURNACE") || name.equals("SMOKER") || name.equals("BREWING_STAND") || name.equals("LECTERN");
     }
 
     private boolean isBannerMaterial(Material mat) {

@@ -12,6 +12,10 @@ import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.block.data.CraftBlockData;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -303,8 +307,21 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
                                 return;
                             }
 
-                            Location loc = new Location(world, currentPos[0], currentPos[1], currentPos[2]);
-                            BlockData blockData = world.getBlockAt(loc).getBlockData();
+                            int x = currentPos[0];
+                            int y = currentPos[1];
+                            int z = currentPos[2];
+                            CraftWorld craftWorld = (CraftWorld) world;
+                            net.minecraft.world.level.block.state.BlockState nmsState = null;
+                            LevelChunk chunk = craftWorld.getHandle().getChunk(x >> 4, z >> 4);
+                            int secIndex = chunk.getSectionIndex(y);
+                            if (secIndex >= 0 && secIndex < chunk.getSections().length) {
+                                LevelChunkSection section = chunk.getSection(secIndex);
+                                if (section != null) {
+                                    nmsState = section.getBlockState(x & 15, y & 15, z & 15);
+                                }
+                            }
+                            BlockData blockData = (nmsState != null) ? CraftBlockData.fromData(nmsState) : world.getBlockAt(x, y, z).getBlockData();
+                            Location loc = new Location(world, x, y, z);
                             regionData.addBlockToSection("temp", loc, blockData);
 
                             blocksThisTick++;
@@ -541,8 +558,21 @@ public class ArenaRegenCommand implements TabExecutor, Listener {
                                 return;
                             }
 
-                            Location loc = new Location(world, currentPos[0], currentPos[1], currentPos[2]);
-                            BlockData blockData = world.getBlockAt(loc).getBlockData();
+                            int x = currentPos[0];
+                            int y = currentPos[1];
+                            int z = currentPos[2];
+                            CraftWorld craftWorld = (CraftWorld) world;
+                            net.minecraft.world.level.block.state.BlockState nmsState = null;
+                            LevelChunk chunk = craftWorld.getHandle().getChunk(x >> 4, z >> 4);
+                            int secIndex = chunk.getSectionIndex(y);
+                            if (secIndex >= 0 && secIndex < chunk.getSections().length) {
+                                LevelChunkSection section = chunk.getSection(secIndex);
+                                if (section != null) {
+                                    nmsState = section.getBlockState(x & 15, y & 15, z & 15);
+                                }
+                            }
+                            BlockData blockData = (nmsState != null) ? CraftBlockData.fromData(nmsState) : world.getBlockAt(x, y, z).getBlockData();
+                            Location loc = new Location(world, x, y, z);
                             regionData.addBlockToSection(sectionName, loc, blockData);
 
                             blocksThisTick++;
