@@ -83,6 +83,7 @@ public class RegionData {
 
     private final ArenaRegen plugin;
     public final Map<String, Map<Location, BlockData>> sectionedBlockData = new ConcurrentHashMap<>();
+    private final Long2ObjectMap<BlockData> pristineBlockMap = new Long2ObjectOpenHashMap<>();
     private final Map<Location, Map<String, Object>> entityDataMap = new ConcurrentHashMap<>();
     private final Map<Location, BlockData> modifiedBlocks = new ConcurrentHashMap<>();
     private final Map<Location, Map<String, Object>> bannerStates = new ConcurrentHashMap<>();
