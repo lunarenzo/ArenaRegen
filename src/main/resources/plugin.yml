@@ -4,7 +4,7 @@ main: com.zitemaker.ArenaRegen
 api-version: 1.18
 description: A plugin that registers and regenerates regions using coordinates.
 author: Zitemaker Studios
-softdepend: ["PlaceholderAPI"]
+softdepend: ["PlaceholderAPI", "WorldGuard"]
 commands:
   arenaregen:
     description: The base command.
