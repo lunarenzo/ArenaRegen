@@ -100,7 +100,7 @@ public class RegionData {
     private int width, height, depth;
     private Location spawnLocation;
     private boolean locked = false;
-    private boolean isBlockDataLoaded = false;
+    private volatile boolean isBlockDataLoaded = false;
     private File datcFile;
     private boolean loadFailed = false;
     private boolean isLoading = false;
@@ -1068,11 +1068,13 @@ public class RegionData {
         }
     }
 
-    public synchronized BlockData getPristineBlockData(int x, int y, int z) {
-        if (pristineBlockMap.isEmpty()) {
-            return null;
+    public BlockData getPristineBlockData(int x, int y, int z) {
+        synchronized (pristineBlockMap) {
+            if (pristineBlockMap.isEmpty()) {
+                return null;
+            }
+            return pristineBlockMap.get(BlockPos.pack(x, y, z));
         }
-        return pristineBlockMap.get(BlockPos.pack(x, y, z));
     }
 
     private void readEntities(DataInputStream dis, World world) throws IOException {
@@ -1186,17 +1188,6 @@ public class RegionData {
                     }
                 }
                 bannerData.put("persistentData", pdcData);
-                try {
-                    BlockState state = world.getBlockAt(loc).getState();
-                    if (state instanceof Banner) {
-                        Banner banner = (Banner) state;
-                        deserializePdc(banner.getPersistentDataContainer(), pdcData);
-                    } else {
-                        LOGGER.warning("[ArenaRegen] Block at " + loc + " is not a banner, cannot apply PDC.");
-                    }
-                } catch (Exception e) {
-                    LOGGER.warning("[ArenaRegen] Failed to apply PDC for banner at " + loc + ": " + e.getMessage());
-                }
             }
 
             bannerStates.put(loc, bannerData);
@@ -1289,17 +1280,6 @@ public class RegionData {
                     }
                 }
                 signData.put("persistentData", pdcData);
-                try {
-                    BlockState state = world.getBlockAt(loc).getState();
-                    if (state instanceof Sign) {
-                        Sign sign = (Sign) state;
-                        deserializePdc(sign.getPersistentDataContainer(), pdcData);
-                    } else {
-                        LOGGER.warning("[ArenaRegen] Block at " + loc + " is not a sign, cannot apply PDC.");
-                    }
-                } catch (Exception e) {
-                    LOGGER.warning("[ArenaRegen] Failed to apply PDC for sign at " + loc + ": " + e.getMessage());
-                }
             }
             signStates.put(loc, signData);
         }

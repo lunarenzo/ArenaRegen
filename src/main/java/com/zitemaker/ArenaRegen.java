@@ -72,8 +72,8 @@ public class ArenaRegen extends JavaPlugin implements Listener {
     private final Map<String, String> pendingRegenerations = new ConcurrentHashMap<>();
     public final Console console = new SpigotConsole();
     public final Logger logger = new Logger(new JavaPlatformLogger(console, getLogger()), true);
-    public final Set<String> dirtyRegions = new HashSet<>();
-    public final Set<String> regeneratingArenas = new HashSet<>();
+    public final Set<String> dirtyRegions = ConcurrentHashMap.newKeySet();
+    public final Set<String> regeneratingArenas = ConcurrentHashMap.newKeySet();
 
     public String prefix;
     public String regenType;

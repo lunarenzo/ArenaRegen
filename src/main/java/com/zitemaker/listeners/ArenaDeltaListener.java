@@ -70,6 +70,9 @@ public final class ArenaDeltaListener implements Listener {
 
         for (RegionData region : regions) {
             if (region.containsLocation(world, x, y, z)) {
+                if (!region.isBlockDataLoaded()) {
+                    region.ensureBlockDataLoaded();
+                }
                 BlockData actualPristine = region.getPristineBlockData(x, y, z);
                 if (actualPristine == null) {
                     actualPristine = pristineData;
