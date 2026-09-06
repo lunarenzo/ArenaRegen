@@ -870,6 +870,24 @@ public class ArenaRegen extends JavaPlugin implements Listener {
             return;
         }
 
+        DeltaLedger deltaLedger = regionData.getDeltaLedger();
+        if (sender == null && deltaLedger.isEmpty() && regenOnlyModified) {
+            synchronized (regeneratingArenas) {
+                regeneratingArenas.remove(arenaName);
+            }
+            synchronized (dirtyRegions) {
+                dirtyRegions.remove(arenaName);
+            }
+            if (regionData.isLocked()) {
+                regionData.setLocked(false);
+            }
+            if ("LAZY".equalsIgnoreCase(arenaLoadingMode) || "LAZY_UNLOAD".equalsIgnoreCase(arenaLoadingMode)) {
+                regionData.clearBlockData();
+            }
+            logger.info("[ArenaRegen] Region '" + arenaName + "' is already pristine (0 blocks modified).");
+            return;
+        }
+
         if (!regionData.isBlockDataLoaded()) {
             if (sender != null) {
                 sender.sendMessage(
