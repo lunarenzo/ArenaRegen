@@ -871,20 +871,8 @@ public class ArenaRegen extends JavaPlugin implements Listener {
         }
 
         DeltaLedger deltaLedger = regionData.getDeltaLedger();
-        if (sender == null && deltaLedger.isEmpty() && regenOnlyModified) {
-            synchronized (regeneratingArenas) {
-                regeneratingArenas.remove(arenaName);
-            }
-            synchronized (dirtyRegions) {
-                dirtyRegions.remove(arenaName);
-            }
-            if (regionData.isLocked()) {
-                regionData.setLocked(false);
-            }
-            if ("LAZY".equalsIgnoreCase(arenaLoadingMode) || "LAZY_UNLOAD".equalsIgnoreCase(arenaLoadingMode)) {
-                regionData.clearBlockData();
-            }
-            logger.info("[ArenaRegen] Region '" + arenaName + "' is already pristine (0 blocks modified).");
+        if (regenOnlyModified) {
+            proceedWithRegeneration(arenaName, sender, regionData, world);
             return;
         }
 
@@ -1047,10 +1035,6 @@ public class ArenaRegen extends JavaPlugin implements Listener {
             return;
         }
 
-        try {
-            regionData.ensureBlockDataLoaded().join();
-        } catch (Exception ignored) {
-        }
         if (!deltaLedger.isEmpty()) {
             if (!handlePlayersAndEntitiesBeforeRegen(world, regionData, arenaName, sender)) {
                 return;
