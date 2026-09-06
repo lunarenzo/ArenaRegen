@@ -66,7 +66,8 @@ public class ArenaRegenExpansion extends PlaceholderExpansion {
                 int count = 0;
                 for (Player p : world.getPlayers()) {
                     Location loc = p.getLocation();
-                    if (region.containsLocation(world, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())) {
+                    int x = loc.getBlockX(), y = loc.getBlockY(), z = loc.getBlockZ();
+                    if (region.containsLocation(world, x, y, z) && !plugin.getWorldGuardHook().isExcluded(world, x, y, z)) {
                         count++;
                     }
                 }
@@ -97,7 +98,7 @@ public class ArenaRegenExpansion extends PlaceholderExpansion {
 
             Set<RegionData> candidates = plugin.getSpatialRegionIndex().getRegionsInChunk(x >> 4, z >> 4);
             for (RegionData r : candidates) {
-                if (r.containsLocation(world, x, y, z)) {
+                if (r.containsLocation(world, x, y, z) && !plugin.getWorldGuardHook().isExcluded(world, x, y, z)) {
                     currentRegion = r;
                     if (r.getDatcFile() != null) {
                         currentRegionName = r.getDatcFile().getName().replace(".datc", "");

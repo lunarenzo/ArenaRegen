@@ -966,7 +966,8 @@ public class ArenaRegen extends JavaPlugin implements Listener {
         List<Player> playersInside = new ArrayList<>();
         for (Player p : world.getPlayers()) {
             Location loc = p.getLocation();
-            if (regionData.containsLocation(world, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())) {
+            int x = loc.getBlockX(), y = loc.getBlockY(), z = loc.getBlockZ();
+            if (regionData.containsLocation(world, x, y, z) && !worldGuardHook.isExcluded(world, x, y, z)) {
                 playersInside.add(p);
             }
         }
@@ -1002,7 +1003,8 @@ public class ArenaRegen extends JavaPlugin implements Listener {
 
         world.getEntities().stream()
                 .filter(e -> !(e instanceof Player) && (trackEntities || e instanceof TNTPrimed || e instanceof FallingBlock || e instanceof Projectile || e instanceof Item)
-                        && regionData.containsLocation(world, e.getLocation().getBlockX(), e.getLocation().getBlockY(), e.getLocation().getBlockZ()))
+                        && regionData.containsLocation(world, e.getLocation().getBlockX(), e.getLocation().getBlockY(), e.getLocation().getBlockZ())
+                        && !worldGuardHook.isExcluded(world, e.getLocation().getBlockX(), e.getLocation().getBlockY(), e.getLocation().getBlockZ()))
                 .forEach(Entity::remove);
 
         return true;

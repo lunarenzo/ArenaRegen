@@ -60,7 +60,7 @@ public class PlayerMoveListener implements Listener {
                 if (!region.isLocked()) continue;
                 if (!region.getWorldName().equals(world.getName())) continue;
 
-                if (region.containsLocation(world, x, y, z)) {
+                if (isInsidePlayableArena(world, x, y, z, region)) {
                     long currentTime = System.currentTimeMillis();
                     UUID playerId = player.getUniqueId();
                     Long lastMessageTime = messageCooldowns.get(playerId);
@@ -101,7 +101,7 @@ public class PlayerMoveListener implements Listener {
                 if (!region.isLocked()) continue;
                 if (!region.getWorldName().equals(world.getName())) continue;
 
-                if (region.containsLocation(world, x, y, z)) {
+                if (isInsidePlayableArena(world, x, y, z, region)) {
                     event.setCancelled(true);
                     player.sendMessage(plugin.prefix + ChatColor.RED + " This arena is currently regenerating and locked! Teleportation cancelled.");
                     return;
@@ -168,11 +168,15 @@ public class PlayerMoveListener implements Listener {
         }
     }
 
+    private boolean isInsidePlayableArena(World world, int x, int y, int z, RegionData region) {
+        return region.containsLocation(world, x, y, z) && !plugin.getWorldGuardHook().isExcluded(world, x, y, z);
+    }
+
     private void evaluateSingleRegion(Player player, World world, Location locFrom, Location locTo, RegionData region) {
         if (!region.getWorldName().equals(world.getName())) return;
 
-        boolean wasInside = locFrom != null && region.containsLocation(world, locFrom.getBlockX(), locFrom.getBlockY(), locFrom.getBlockZ());
-        boolean isInside = locTo != null && region.containsLocation(world, locTo.getBlockX(), locTo.getBlockY(), locTo.getBlockZ());
+        boolean wasInside = locFrom != null && isInsidePlayableArena(world, locFrom.getBlockX(), locFrom.getBlockY(), locFrom.getBlockZ(), region);
+        boolean isInside = locTo != null && isInsidePlayableArena(world, locTo.getBlockX(), locTo.getBlockY(), locTo.getBlockZ(), region);
 
         String regionName = getRegionName(region);
         if (regionName == null) return;
@@ -223,7 +227,7 @@ public class PlayerMoveListener implements Listener {
         int count = 0;
         for (Player player : world.getPlayers()) {
             Location loc = player.getLocation();
-            if (region.containsLocation(world, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())) {
+            if (isInsidePlayableArena(world, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(), region)) {
                 count++;
             }
         }
