@@ -1086,6 +1086,7 @@ public class ArenaRegen extends JavaPlugin implements Listener {
                     }
                 }
                 deltaLedger.clear();
+                regionData.clearBlockData();
                 long timeTaken = System.currentTimeMillis() - startTime;
                 if (sender != null) {
                     sender.sendMessage(prefix + ChatColor.GREEN + " Delta Regeneration of '" + arenaName + "' complete! "
