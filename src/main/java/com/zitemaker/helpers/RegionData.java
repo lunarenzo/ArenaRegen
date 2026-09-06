@@ -41,6 +41,10 @@ public class RegionData {
     private static final int MAX_CACHE_SIZE = 10000; 
 
     
+    public static void clearBlockDataCache() {
+        BLOCK_DATA_CACHE.clear();
+    }
+
     public static BlockData getCachedBlockData(String blockDataString) {
         
         BlockData cached = BLOCK_DATA_CACHE.get(blockDataString);

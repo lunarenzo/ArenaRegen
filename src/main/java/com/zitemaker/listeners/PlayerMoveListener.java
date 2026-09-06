@@ -62,6 +62,9 @@ public class PlayerMoveListener implements Listener {
 
                 if (isInsidePlayableArena(world, x, y, z, region)) {
                     long currentTime = System.currentTimeMillis();
+                    if (messageCooldowns.size() > 50) {
+                        messageCooldowns.entrySet().removeIf(e -> currentTime - e.getValue() > MESSAGE_COOLDOWN_MS);
+                    }
                     UUID playerId = player.getUniqueId();
                     Long lastMessageTime = messageCooldowns.get(playerId);
                     if (lastMessageTime == null || currentTime - lastMessageTime > MESSAGE_COOLDOWN_MS) {
