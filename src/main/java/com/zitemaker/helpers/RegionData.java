@@ -120,10 +120,6 @@ public class RegionData {
 
     public void setLocked(boolean locked) {
         this.locked = locked;
-        if (datcFile != null) {
-            String regionName = datcFile.getName().replace(".datc", "");
-            plugin.markRegionDirty(regionName);
-        }
     }
 
     public Location getSpawnLocation() {
