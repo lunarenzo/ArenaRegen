@@ -598,13 +598,6 @@ public class ArenaRegen extends JavaPlugin implements Listener {
         }
     }
 
-    public void trimIdleCaches() {
-        RegionData.clearBlockDataCache();
-        if (Bukkit.getOnlinePlayers().isEmpty()) {
-            System.gc();
-        }
-    }
-
     public RenameArenaResult renameArena(String oldName, String newName) {
         try {
             ArenaRenameService.validateArenaName(oldName);
@@ -1110,7 +1103,6 @@ public class ArenaRegen extends JavaPlugin implements Listener {
                 if (regionData.isLocked()) {
                     regionData.setLocked(false);
                 }
-                trimIdleCaches();
             }
             return;
         }
