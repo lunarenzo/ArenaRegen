@@ -1011,10 +1011,6 @@ public class ArenaRegen extends JavaPlugin implements Listener {
     }
 
     private void proceedWithRegeneration(String arenaName, CommandSender sender, RegionData regionData, World world) {
-        try {
-            regionData.ensureBlockDataLoaded().join();
-        } catch (Exception ignored) {
-        }
         DeltaLedger deltaLedger = regionData.getDeltaLedger();
         if (sender == null && deltaLedger.isEmpty() && regenOnlyModified) {
             synchronized (regeneratingArenas) {
@@ -1026,8 +1022,16 @@ public class ArenaRegen extends JavaPlugin implements Listener {
             if (regionData.isLocked()) {
                 regionData.setLocked(false);
             }
+            if ("LAZY".equalsIgnoreCase(arenaLoadingMode) || "LAZY_UNLOAD".equalsIgnoreCase(arenaLoadingMode)) {
+                regionData.clearBlockData();
+            }
             logger.info("[ArenaRegen] Region '" + arenaName + "' is already pristine (0 blocks modified).");
             return;
+        }
+
+        try {
+            regionData.ensureBlockDataLoaded().join();
+        } catch (Exception ignored) {
         }
         if (!deltaLedger.isEmpty()) {
             if (!handlePlayersAndEntitiesBeforeRegen(world, regionData, arenaName, sender)) {

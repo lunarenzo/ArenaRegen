@@ -216,10 +216,6 @@ public class PlayerMoveListener implements Listener {
             task.cancel();
             plugin.getLogger().info("Player entered arena '" + arenaName + "'. Canceled scheduled empty-regeneration.");
         }
-        RegionData region = plugin.getRegisteredRegions().get(arenaName);
-        if (region != null && !region.isBlockDataLoaded()) {
-            region.ensureBlockDataLoaded();
-        }
     }
 
     private int getPlayersInArena(String arenaName) {
